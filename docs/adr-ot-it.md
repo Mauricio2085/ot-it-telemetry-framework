@@ -2,7 +2,7 @@
 
 [English](adr-ot-it.en.md)
 
-Estado: aceptada. 2026-10-24.
+Estado: aceptada. 2026-10-24. El alcance del producto, y las fases que todavía no están en el código, están en [adr-scope.md](adr-scope.md). Este texto es la decisión del laboratorio, y el código de este repo todavía la implementa tal cual.
 
 ## Contexto
 

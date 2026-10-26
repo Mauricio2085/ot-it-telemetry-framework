@@ -2,7 +2,7 @@
 
 [Español](adr-ot-it.md)
 
-Status: accepted. 2026-10-24.
+Status: accepted. 2026-10-24. The product scope, and the phases not yet in the code, are in [adr-scope.en.md](adr-scope.en.md). This text is the lab decision, and the code in this repo still implements it as written.
 
 ## Context
 

@@ -1,8 +1,30 @@
 [Español](README.es.md)
 
-A maintenance lead cannot tell an unbalancing motor, a failed vibration transmitter, and a silent edge apart from three trend lines. This lab separates them: the motor's vibration crosses warning at 2.8 mm/s and alarm at 4.5 mm/s, a 25 mm/s `bad` reading stays out of the condition, and the pump's temperature, 3 °C high and `uncertain`, leaves the asset `normal`. The one-page case is [docs/case.en.md](docs/case.en.md) ([español](docs/case.md)).
+This product monitors one critical mechanical motor: bearing temperature and vibration, read over Modbus TCP. Pressure, the pump, the compressor, and OPC UA are outside that scope. OPC UA stays a client's OT standard, not part of the product.
 
-## Overview
+The code in this repository is still the lab it was copied from. Nothing below "Current code" has been cut yet. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).
+
+## Where it comes from
+
+The tree starts from [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). Two lab decisions are adopted as written:
+
+- **OT and IT meet only at the broker**, on `plant/area/asset/telemetry`: [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), accepted 2026-10-24.
+- **Signals follow the failure mode**, and the target is one row per signal with its own quality. The table stays wide until that migration: [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), accepted 2026-10-22.
+
+The quality words `good`, `uncertain`, and `bad` come from the OPC UA status model in that lab. The vocabulary stays. The protocol does not.
+
+## Phases
+
+Each phase is a later code change. None of them is done.
+
+1. Remove OPC UA: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide.
+2. Keep only `critical-motor-01`. Remove `mqtt-simulator`, the pump, and the compressor.
+3. Keep two signals: `bearing_temperature` and `vibration`. Drop `pressure` and rename `temperature`. The product register map is HR0 bearing temperature, HR1 vibration, HR2 device status.
+4. One row per signal, and contract v2 with a quality per signal. That stays the measurements decision, after phase 3.
+
+## Current code
+
+The sections below describe the lab baseline still in the tree.
 
 End-to-end industrial telemetry pipeline for critical asset health monitoring. Three simulated critical assets (a pump, a compressor, and a motor) publish temperature, pressure, and vibration. The stack ingests those signals, checks the payload, stores them as a time series, and charts them.
 
@@ -35,7 +57,7 @@ Two data-quality episodes run alongside it:
 - **Instrument failure, not machine failure.** At minute 1 of each motor cycle the vibration transmitter fails for 30 seconds: the reading saturates at 25 mm/s and the device flags it as `bad`. The stack keeps those readings in history but leaves them out of the condition, so the motor stays `normal` instead of raising a false alarm.
 - **Doubtful data.** For 2 minutes in every 10, the pump temperature sensor reads 3 °C high and the simulator flags the readings as `uncertain`. They are used, and the dashboard marks them.
 
-For a five-minute walkthrough, `scripts/demo-prep.sh` lines these episodes up so that warning, uncertain data, and alarm happen while you watch. Timings and what to look at: [docs/demo.en.md](docs/demo.en.md).
+`scripts/demo-prep.sh` restarts the motor and pump sources so that warning, uncertain data, and alarm fall inside the dashboard window.
 
 ### Asset condition
 
@@ -66,7 +88,7 @@ Colors follow ISA-101 for high-performance HMIs: `normal` is gray, and color is 
 
 The dashboard is provisioned from `grafana/dashboards/asset-health.json` and cannot be saved from the Grafana UI. Edit the file instead; Grafana reloads it within about 10 seconds, and the browser shows the change after a page refresh. Rows and tiles repeat over the assets in `asset_limits`, so a new asset shows up without editing the JSON.
 
-Lab notes: [docs/demo.en.md](docs/demo.en.md) ([español](docs/demo.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)), [docs/opcua-prosys.en.md](docs/opcua-prosys.en.md) ([español](docs/opcua-prosys.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)).
+Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)), [docs/opcua-prosys.en.md](docs/opcua-prosys.en.md) ([español](docs/opcua-prosys.md)).
 
 ### Pipeline
 
@@ -162,14 +184,14 @@ Modbus values arrive as integers in holding registers and are scaled in Node-RED
 - Modbus RTU is not implemented (serial / USB horizon only).
 - After `docker compose stop modbus-slave`, the Node-RED Modbus client does not reconnect on its own; run `docker compose restart node-red-ingestion`. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md#reconnecting-after-the-slave-stops).
 
-### Lessons learned
+### Accepted direction
 
-Building the MVP with three fixed signals for every asset kept the ETL, the SQL, and the dashboard simple, and every concept (condition, margin used, quality, `stale`) could be built without pivoting data. It also showed where that model stops working:
+The running code still stores three fixed signals in columns, so condition, margin used, quality, and `stale` stay column-based until the measurement migration. The product keeps these decisions:
 
-- **Signals should follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. Starting from three fixed signals gave the motor a "pressure" that is never evaluated.
-- **Narrow measurements fit better than fixed columns.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That target is accepted in [docs/adr-measurements.en.md](docs/adr-measurements.en.md). `sensor_readings` stays wide while contract v1 is in force.
-- **Metadata belongs in an asset registry, not in the message.** Plant, area, type, and criticality now live in `assets`. Units and limits stay on `asset_limits`. A template of limits per asset type is still ahead.
-- **Standards beat a custom contract.** The accepted boundary is the broker between `ot-net` and `it-net`, and the accepted topic is the short namespace `plant/area/asset/telemetry`. ISA-95 is the reference for putting that hierarchy in the name. Sparkplug B already defines typed metrics with quality, plus birth and death messages that report a disconnected device without waiting for a one-minute window; this lab does not speak it. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
-- **Rejected messages need somewhere to go.** Contract violations now go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still only shows up in the editor.
+- **Signals follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. The motor still stores a pressure column that `asset_limits` never evaluates.
+- **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That target is accepted in [docs/adr-measurements.en.md](docs/adr-measurements.en.md). `sensor_readings` stays wide while contract v1 is in force.
+- **Metadata stays in the asset registry.** Plant, area, type, and criticality live in `assets`. Units and limits stay on `asset_limits`. A template of limits per asset type is still ahead.
+- **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
+- **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.
 
-Phase 2 closes with [docs/adr-measurements.en.md](docs/adr-measurements.en.md). Still ahead: the migration to one row per signal, and contract v2 with a quality per signal.
+The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA leaves first, then the pump and the compressor, then pressure. The migration to one row per signal, and contract v2 with a quality per signal, comes after that.

@@ -2,6 +2,8 @@
 
 [Español](modbus-tcp.md)
 
+This map is the one in the code today, with pressure on HR1 and status on HR3. The product map — bearing temperature and vibration — is phase 3 of [adr-scope.en.md](adr-scope.en.md).
+
 `modbus-slave` is the second OT source in this lab. It is a Modbus TCP server that exposes four holding registers for `critical-motor-01`: three readings and a device status. `node-red-ingestion` polls them every 5 seconds, scales the readings, translates the status into the contract quality, and publishes the same telemetry JSON contract used by the MQTT simulator.
 
 The asset is a motor, not a "Modbus pump". The `asset_id` names the equipment; Modbus is only how its readings reach the edge.

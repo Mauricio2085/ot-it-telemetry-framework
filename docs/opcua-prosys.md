@@ -2,6 +2,8 @@
 
 [English](opcua-prosys.en.md)
 
+Fuera del producto. La guía sigue porque el flujo todavía está en el árbol. Se retira en la fase 1 de [adr-scope.md](adr-scope.md).
+
 La fuente OT por defecto es `mqtt-simulator` en Compose. Prosys OPC UA Simulation Server es un camino opcional. Corre en el host Windows; no hay servicio de Prosys en `docker-compose.yaml`.
 
 La pestaña **OPC UA Ingestion** en `node-red-ingestion` está **deshabilitada por defecto** para no publicar en el mismo topic que el simulador. Habilítala solo después de detener `mqtt-simulator` y confirmar que Prosys es alcanzable.

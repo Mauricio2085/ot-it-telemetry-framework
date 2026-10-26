@@ -2,6 +2,8 @@
 
 [Español](opcua-prosys.md)
 
+Outside the product. The guide stays because the flow is still in the tree. It goes away in phase 1 of [adr-scope.en.md](adr-scope.en.md).
+
 The default lab source is `mqtt-simulator` in Compose. Prosys OPC UA Simulation Server is an optional OT path. It runs on the Windows host; there is no Prosys service in `docker-compose.yaml`.
 
 The **OPC UA Ingestion** tab in `node-red-ingestion` is **disabled by default** so it does not publish to the same topic as the simulator. Enable that tab only after stopping `mqtt-simulator` and confirming Prosys is reachable.

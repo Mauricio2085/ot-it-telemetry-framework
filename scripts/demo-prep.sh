@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Stage the lab scenarios for the five-minute demo in docs/demo.en.md.
+# Align the reference scenarios so warning, uncertain data, and alarm
+# fall inside a 15-minute Grafana window.
 #
 # L is the moment to start watching the dashboard.
 #   L - 8:00  restart modbus-slave: the motor cycle starts at 0

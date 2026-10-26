@@ -2,6 +2,8 @@
 
 [English](modbus-tcp.en.md)
 
+Este mapa es el del código actual, con la presión en HR1 y el estado en HR3. El mapa del producto —temperatura de rodamientos y vibración— es la fase 3 de [adr-scope.md](adr-scope.md).
+
 `modbus-slave` es la segunda fuente OT de este laboratorio. Es un servidor Modbus TCP con cuatro holding registers para `critical-motor-01`: tres lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el mismo contrato JSON de telemetría que el simulador MQTT.
 
 El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Modbus es solo el camino por el que sus lecturas llegan al edge.
