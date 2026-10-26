@@ -2,10 +2,9 @@
 """Modbus TCP slave that exposes motor telemetry as holding registers.
 
 Register map (unit id 1):
-  HR0  temperature * 10   (e.g. 550  → 55.0 °C)
-  HR1  pressure * 100     (e.g. 100  → 1.00 bar)
-  HR2  vibration * 100    (e.g. 80   → 0.80 mm/s RMS)
-  HR3  device status      (0 good, 1 uncertain, 2 bad)
+  HR0  bearing temperature * 10   (e.g. 550 → 55.0 °C)
+  HR1  vibration * 100            (e.g. 80  → 0.80 mm/s RMS)
+  HR2  device status              (0 good, 1 uncertain, 2 bad)
 
 The motor runs a repeating unbalance scenario: normal operation, a
 progressive vibration ramp through warning (2.8 mm/s) and alarm (4.5 mm/s),
@@ -39,7 +38,6 @@ UPDATE_INTERVAL_S = float(os.environ.get("UPDATE_INTERVAL_S", "1"))
 
 # Nominal points of critical-motor-01. Soft noise is a slow sine plus small jitter.
 MOTOR_TEMPERATURE = 55.0
-MOTOR_PRESSURE = 1.0
 MOTOR_VIBRATION = 0.8
 
 # Unbalance scenario. Thresholds follow ISO 10816-3 zones for medium machines
@@ -112,7 +110,6 @@ def scaled_registers(elapsed_s: float) -> list[int]:
     temperature = soft_noise(
         elapsed_s, MOTOR_TEMPERATURE + TEMPERATURE_RISE * severity, 0.4, 300.0
     )
-    pressure = soft_noise(elapsed_s, MOTOR_PRESSURE, 0.03, 240.0)
     vibration = soft_noise(
         elapsed_s,
         MOTOR_VIBRATION + (PEAK_VIBRATION - MOTOR_VIBRATION) * severity,
@@ -125,7 +122,6 @@ def scaled_registers(elapsed_s: float) -> list[int]:
         status = STATUS_BAD
     return [
         int(round(temperature * 10)),
-        int(round(pressure * 100)),
         int(round(vibration * 100)),
         status,
     ]
@@ -152,15 +148,13 @@ def update_loop(context: ModbusServerContext) -> None:
         ticks += 1
         if ticks == 1 or ticks % 30 == 0:
             log.info(
-                "[%s] HR0=%s HR1=%s HR2=%s HR3=%s  (temp=%.1f press=%.2f vib=%.2f)",
+                "[%s] HR0=%s HR1=%s HR2=%s  (temp=%.1f vib=%.2f)",
                 phase,
                 values[0],
                 values[1],
                 values[2],
-                values[3],
                 values[0] / 10.0,
                 values[1] / 100.0,
-                values[2] / 100.0,
             )
         time.sleep(UPDATE_INTERVAL_S)
 
@@ -179,7 +173,7 @@ def main() -> int:
     updater.start()
 
     log.info(
-        "Modbus TCP slave on %s:%s unit_id=%s (HR0-HR2 telemetry, HR3 status)",
+        "Modbus TCP slave on %s:%s unit_id=%s (HR0-HR1 telemetry, HR2 status)",
         HOST,
         PORT,
         UNIT_ID,

@@ -487,7 +487,7 @@
           "format": "time_series",
           "editorMode": "code",
           "rawQuery": true,
-          "rawSql": "SELECT t.time, x.name AS metric, x.value\nFROM asset_limits l\nCROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t (time)\nCROSS JOIN LATERAL (VALUES\n    ('alarm high', l.alarm_high),\n    ('warning high', l.warning_high),\n    ('warning low', l.warning_low),\n    ('alarm low', l.alarm_low)\n) AS x (name, value)\nWHERE l.asset_id IN ($asset) AND l.signal = 'temperature' AND x.value IS NOT NULL\nORDER BY 1"
+          "rawSql": "SELECT t.time, x.name AS metric, x.value\nFROM asset_limits l\nCROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t (time)\nCROSS JOIN LATERAL (VALUES\n    ('alarm high', l.alarm_high),\n    ('warning high', l.warning_high),\n    ('warning low', l.warning_low),\n    ('alarm low', l.alarm_low)\n) AS x (name, value)\nWHERE l.asset_id IN ($asset) AND l.signal = 'bearing_temperature' AND x.value IS NOT NULL\nORDER BY 1"
         }
       ]
     },

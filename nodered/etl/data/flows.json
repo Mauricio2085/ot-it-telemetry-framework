@@ -4,7 +4,7 @@
         "type": "tab",
         "label": "Telemetry ETL",
         "disabled": false,
-        "info": "Subscribes to +/+/+/telemetry, validates each payload, checks the asset against the registry, and inserts the reading into sensor_readings. Plant and area still come from the topic; they must match the assets row. A refused message is published to the topic rejected and inserted into rejected_messages.",
+        "info": "Subscribes to +/+/+/telemetry, validates each payload, checks the asset against the registry, splits signals, rejects a signal with no asset_limits row, and folds the accepted signals into the wide sensor_readings row. Plant and area still come from the topic; they must match the assets row. A refused message is published to the topic rejected and inserted into rejected_messages.",
         "env": []
     },
     {
@@ -106,7 +106,7 @@
         "type": "function",
         "z": "381ca58481ca40b3",
         "name": "Validate and enrich",
-        "func": "msg.original = msg.payload;\nconst [plant, area, assetFromTopic] = msg.topic.split('/');\nconst p = msg.payload;\nconst errors = [];\nif (typeof p !== 'object' || p === null) {\n    errors.push('payload is not a JSON object');\n} else {\n    if (p.asset_id !== assetFromTopic) errors.push('asset_id does not match topic');\n    for (const field of ['temperature', 'pressure', 'vibration']) {\n        if (typeof p[field] !== 'number' || !Number.isFinite(p[field])) {\n            errors.push(`${field} is not a number`);\n        }\n    }\n    if (Number.isNaN(Date.parse(p.ts))) errors.push('ts is not a valid timestamp');\n    if (!['good', 'uncertain', 'bad'].includes(p.quality)) {\n        errors.push('quality is not good, uncertain or bad');\n    }\n}\nif (errors.length > 0) {\n    msg.errors = errors;\n    return [null, msg];\n}\nmsg.reading = {\n    time: p.ts,\n    plant,\n    area,\n    asset_id: p.asset_id,\n    temperature: p.temperature,\n    pressure: p.pressure,\n    vibration: p.vibration,\n    quality: p.quality\n};\nmsg.payload = msg.reading;\nmsg.params = [p.asset_id];\nreturn [msg, null];",
+        "func": "msg.original = msg.payload;\nconst [plant, area, assetFromTopic] = msg.topic.split('/');\nconst p = msg.payload;\nconst errors = [];\nconst qualities = ['good', 'uncertain', 'bad'];\nif (typeof p !== 'object' || p === null || Array.isArray(p)) {\n    errors.push('payload is not a JSON object');\n} else {\n    if (p.asset_id !== assetFromTopic) errors.push('asset_id does not match topic');\n    if (Number.isNaN(Date.parse(p.ts))) errors.push('ts is not a valid timestamp');\n    if (!Array.isArray(p.signals)) {\n        errors.push('signals is not a list');\n    } else if (p.signals.length === 0) {\n        errors.push('signals is empty');\n    } else {\n        const seen = new Set();\n        p.signals.forEach((signal, index) => {\n            const name = signal && typeof signal.name === 'string' ? signal.name : '';\n            const label = name ? `signal ${name}` : `signal ${index + 1}`;\n            if (!name) errors.push(`${label} has no name`);\n            else if (seen.has(name)) errors.push(`${label} is duplicated`);\n            else seen.add(name);\n            if (!signal || typeof signal.value !== 'number' || !Number.isFinite(signal.value)) {\n                errors.push(`${label} value is not a number`);\n            }\n            if (!signal || !qualities.includes(signal.quality)) {\n                errors.push(`${label} quality is not good, uncertain or bad`);\n            }\n        });\n    }\n}\nif (errors.length > 0) {\n    msg.errors = errors;\n    return [null, msg];\n}\nmsg.reading = {\n    time: p.ts,\n    plant,\n    area,\n    asset_id: p.asset_id,\n    signals: p.signals.map((signal) => ({\n        name: signal.name,\n        value: signal.value,\n        quality: signal.quality\n    }))\n};\nmsg.payload = msg.reading;\nmsg.params = [p.asset_id];\nreturn [msg, null];",
         "outputs": 2,
         "timeout": 0,
         "noerr": 0,
@@ -158,7 +158,7 @@
         "y": 320,
         "wires": [
             [
-                "769581bceb70b8b7"
+                "b8c7d6e5f4a39281"
             ],
             [
                 "e4b7c1a09d2f4863"
@@ -284,7 +284,8 @@
         "scope": [
             "a7c31e90b4d25f68",
             "b3c9e7a15d0f2846",
-            "c8e81525ba6d8750"
+            "c8e81525ba6d8750",
+            "b8c7d6e5f4a39281"
         ],
         "uncaught": false,
         "x": 820,
@@ -311,5 +312,46 @@
         "x": 1140,
         "y": 260,
         "wires": []
+    },
+    {
+        "id": "b8c7d6e5f4a39281",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Look up limits",
+        "query": "SELECT signal FROM asset_limits WHERE asset_id = $1",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1180,
+        "y": 320,
+        "wires": [
+            [
+                "a9b8c7d6e5f40392"
+            ]
+        ]
+    },
+    {
+        "id": "a9b8c7d6e5f40392",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Split signals",
+        "func": "const reading = msg.reading;\nconst rows = Array.isArray(msg.payload) ? msg.payload : [];\nif (!reading) {\n    msg.errors = ['reading missing before limits check'];\n    return [null, msg];\n}\n// The table is still wide. Accepted signals fold into that row until stage 3.\nconst WIDE = { bearing_temperature: 'temperature', vibration: 'vibration' };\nconst catalog = new Set(rows.map((row) => row.signal));\nconst unknown = [];\nconst storable = [];\nconst unstorable = [];\nfor (const signal of reading.signals) {\n    if (!catalog.has(signal.name)) unknown.push(signal.name);\n    else if (!Object.prototype.hasOwnProperty.call(WIDE, signal.name)) unstorable.push(signal.name);\n    else storable.push(signal);\n}\nconst errors = unknown.map((name) => `signal ${name} has no asset_limits row`);\nfor (const name of unstorable) {\n    errors.push(`signal ${name} cannot be stored in the wide row`);\n}\nconst qualities = new Set(storable.map((signal) => signal.quality));\nif (storable.length > 0 && qualities.size > 1) {\n    errors.push('signals do not share one quality');\n    msg.errors = errors;\n    return [null, msg];\n}\nif (storable.length === 0) {\n    msg.errors = errors.length ? errors : ['signals is empty'];\n    return [null, msg];\n}\nconst row = {\n    time: reading.time,\n    plant: reading.plant,\n    area: reading.area,\n    asset_id: reading.asset_id,\n    temperature: null,\n    pressure: null,\n    vibration: null,\n    quality: storable[0].quality\n};\nfor (const signal of storable) row[WIDE[signal.name]] = signal.value;\nconst insertMsg = Object.assign({}, msg, { payload: row });\ndelete insertMsg.errors;\nif (errors.length === 0) return [insertMsg, null];\nconst rejectMsg = Object.assign({}, msg, { errors });\nreturn [insertMsg, rejectMsg];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1400,
+        "y": 320,
+        "wires": [
+            [
+                "769581bceb70b8b7"
+            ],
+            [
+                "e4b7c1a09d2f4863"
+            ]
+        ]
     }
 ]

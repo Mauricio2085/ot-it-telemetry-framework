@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS asset_limits (
     reference    TEXT             NOT NULL DEFAULT 'unknown',
     PRIMARY KEY (asset_id, signal),
     CONSTRAINT asset_limits_signal_check
-        CHECK (signal IN ('temperature', 'pressure', 'vibration')),
+        CHECK (signal IN ('bearing_temperature', 'pressure', 'vibration')),
     CONSTRAINT asset_limits_has_limit_check
         CHECK (num_nonnulls(alarm_low, warning_low, warning_high, alarm_high) > 0),
     CONSTRAINT asset_limits_low_order_check
@@ -39,12 +39,31 @@ BEGIN
 END
 $$;
 
+-- An existing database still has the closed list and the old signal name.
+-- CREATE TABLE IF NOT EXISTS does not replace that check.
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'asset_limits_signal_check'
+          AND pg_get_constraintdef(oid) NOT LIKE '%bearing_temperature%'
+    ) THEN
+        ALTER TABLE asset_limits DROP CONSTRAINT asset_limits_signal_check;
+        UPDATE asset_limits
+            SET signal = 'bearing_temperature'
+            WHERE signal = 'temperature';
+        ALTER TABLE asset_limits ADD CONSTRAINT asset_limits_signal_check
+            CHECK (signal IN ('bearing_temperature', 'pressure', 'vibration'));
+    END IF;
+END
+$$;
+
 -- critical-motor-01 has no pressure row on purpose: a motor has no process
--- pressure, so that signal is stored but never evaluated.
+-- pressure. The wide temperature column still holds bearing_temperature.
 INSERT INTO asset_limits
     (asset_id, signal, unit, nominal, alarm_low, warning_low, warning_high, alarm_high, reference)
 VALUES
-    ('critical-motor-01',      'temperature', '°C',   55.0, NULL, NULL,  80.0,  90.0,  'lab default'),
+    ('critical-motor-01',      'bearing_temperature', '°C',   55.0, NULL, NULL,  80.0,  90.0,  'lab default'),
     ('critical-motor-01',      'vibration',   'mm/s', 0.8,  NULL, NULL,  2.8,   4.5,   'ISO 10816-3')
 ON CONFLICT (asset_id, signal) DO UPDATE SET
     unit         = EXCLUDED.unit,
@@ -103,7 +122,7 @@ evaluated AS (
            END AS usage
     FROM recent r
     CROSS JOIN LATERAL (VALUES
-        ('temperature', r.temperature),
+        ('bearing_temperature', r.temperature),
         ('pressure',    r.pressure),
         ('vibration',   r.vibration)
     ) AS v (signal, value)
@@ -113,7 +132,7 @@ evaluated AS (
 per_asset AS (
     SELECT asset_id,
            max(CASE state WHEN 'alarm' THEN 2 WHEN 'warning' THEN 1 WHEN 'normal' THEN 0 END) AS worst,
-           max(state) FILTER (WHERE signal = 'temperature') AS temperature_state,
+           max(state) FILTER (WHERE signal = 'bearing_temperature') AS temperature_state,
            max(state) FILTER (WHERE signal = 'pressure')    AS pressure_state,
            max(state) FILTER (WHERE signal = 'vibration')   AS vibration_state,
            (array_agg(signal ORDER BY usage DESC NULLS LAST))[1] AS worst_signal,
