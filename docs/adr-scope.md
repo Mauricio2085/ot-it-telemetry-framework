@@ -4,7 +4,7 @@
 
 Estado: aceptada. 2026-10-25.
 
-La fase 1 y la fase 2 están hechas. La presión sigue en el árbol hasta la fase 3.
+La fase 1 y la fase 2 están hechas. La etapa 1 de la fase 3 está hecha. El esclavo sigue publicando la presión hasta la etapa 2.
 
 ## De dónde viene
 
@@ -33,7 +33,7 @@ Los límites de la temperatura de rodamientos, hasta que una hoja de datos los r
 
 ## Fases
 
-Las fases 1 y 2 están hechas. La fase 3 no. Cada una deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
+Las fases 1 y 2 están hechas. La etapa 1 de la fase 3 está hecha. Las etapas 2, 3 y 4 no. Cada fase deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
 
 ### 1. Quitar OPC UA
 
@@ -53,7 +53,7 @@ Comprobación: `asset_condition` tiene una fila, la del motor, y el script de de
 
 Una sola fase, en cuatro etapas, para no congelar dos columnas:
 
-1. **Contrato.** El mensaje lleva `asset_id`, `ts` y `signals`, cada una con nombre, valor y calidad. Este perfil publica `bearing_temperature` y `vibration`. El esclavo tiene un solo estado de equipo, así que las dos señales salen con esa misma calidad. La forma ya permite que otra fuente las distinga.
+1. **Contrato.** Hecha. El esquema es `contracts/telemetry-v2.schema.json`. El mensaje lleva `asset_id`, `ts` y `signals`; cada señal lleva nombre, valor y calidad. El ejemplo del perfil publica `bearing_temperature` y `vibration` con la misma calidad. Otro ejemplo trae calidades distintas y pasa. Un nombre que no es de este perfil también pasa: el esquema no lo cierra. El mensaje ancho ya no pasa. El esclavo y Node-RED siguen publicando ese mensaje ancho. Comprobación: `scripts/check-contracts.py` acepta el perfil, las calidades distintas y el nombre abierto, y rechaza el mensaje ancho.
 2. **Borde.** HR0 es temperatura de rodamientos × 10, HR1 es vibración × 100 y HR2 es el estado (`0` good, `1` uncertain, `2` bad). El ETL parte el mensaje en una fila por señal y rechaza una señal que no tenga fila en `asset_limits`.
 3. **Base.** `sensor_readings` guarda `time`, `asset_id`, `signal`, `value` y `quality`. Planta y área siguen en `assets`. `asset_limits` es el catálogo de señales: el `CHECK` deja de cerrar los nombres. La condición y el agregado de un minuto agrupan por señal. «Lecturas / min» cuenta instantes, no filas, y sigue en 11 o 12.
 4. **Tablero.** Dos tendencias, temperatura de rodamientos y vibración, con los límites leídos de `asset_limits`. La tabla de detalle es una fila por señal. Una señal nueva entra en la condición y en esa tabla sin cambiar el esquema. Su tendencia es un panel del perfil que la traiga.
@@ -68,6 +68,6 @@ Una bomba, un conveyor u OPC UA pedido por un cliente es un perfil nuevo. OPC UA
 
 ## Consecuencias
 
-- Quien levante el stack hoy ve el motor y la presión. La bomba, el compresor y la pestaña OPC UA ya no están. La presión sigue en el contrato ancho, hasta la fase 3.
+- Quien levante el stack hoy ve el motor y la presión. La bomba, el compresor y la pestaña OPC UA ya no están. El esclavo sigue publicando el mensaje ancho. El contrato que chequea el repositorio ya es la lista de señales.
 - Los textos de Modbus, condición, registro, historial y rechazos describen ese código hasta que la fase correspondiente los alcance.
 - La frontera del broker, el tópico, el registro, la condición por promedio de un minuto y el historial de un minuto se quedan. La fase 3 cambia la forma de la fila, no esa frontera.

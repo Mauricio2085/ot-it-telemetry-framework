@@ -2,7 +2,7 @@
 
 [English](adr-measurements.en.md)
 
-Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). La fase 3 todavía no está en el código. Este texto es la decisión del laboratorio, y el contrato ancho sigue tal cual.
+Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). La etapa 1 de la fase 3 está en el esquema: el chequeo vigila el contrato v2. El flujo sigue publicando el mensaje ancho. Este texto es la decisión del laboratorio.
 
 ## Contexto
 
@@ -41,7 +41,7 @@ Planta y área siguen en `assets`. Unidad y umbrales siguen en `asset_limits`.
 
 `sensor_readings` sigue siendo el almacén. Las tablas, los flujos y el tablero quedan como están.
 
-El JSON de hoy es el contrato v1. No lleva campo de versión:
+Ese JSON ancho es el contrato v1 del laboratorio. No lleva campo de versión:
 
 ```json
 {
@@ -54,7 +54,7 @@ El JSON de hoy es el contrato v1. No lleva campo de versión:
 }
 ```
 
-v1 se sigue aceptando durante la migración. Un ETL posterior parte un mensaje en tres filas y copia esa única calidad en las tres. El contrato v2 es el que podrá traer una calidad por señal. El simulador y el flujo siguen publicando v1.
+El flujo sigue publicando ese JSON ancho hasta la etapa del borde. El contrato que chequea el repositorio es v2, en `contracts/telemetry-v2.schema.json`: `asset_id`, `ts` y `signals`, cada una con nombre, valor y calidad. El mensaje ancho ya no pasa ese chequeo.
 
 ## Consecuencias
 
@@ -62,4 +62,4 @@ v1 se sigue aceptando durante la migración. Un ETL posterior parte un mensaje e
 - Un sensor `bad` sigue marcando las otras dos señales de esa lectura.
 - Una señal nueva sigue pidiendo un cambio de esquema mientras la tabla ancha sea el almacén. En el destino, la medición nueva es una fila. `asset_limits` todavía cierra `signal` a `temperature`, `pressure` y `vibration`, así que un cuarto nombre abre ese `CHECK` y agrega su fila de umbrales.
 - La migración —tabla nueva, relleno del historial, agregado de un minuto y paneles— queda fuera de este texto.
-- v2 queda nombrado y sin implementar.
+- v2 es el esquema del chequeo. El flujo sigue publicando el JSON ancho.

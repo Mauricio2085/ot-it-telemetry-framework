@@ -2,7 +2,7 @@
 
 [Español](adr-measurements.md)
 
-Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Phase 3 is not in the code yet. This text is the lab decision, and the wide contract is still implemented as written.
+Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stage 1 of phase 3 is in the schema: the check watches contract v2. The flow still publishes the wide message. This text is the lab decision.
 
 ## Context
 
@@ -41,7 +41,7 @@ Plant and area stay in `assets`. Units and limits stay in `asset_limits`.
 
 `sensor_readings` stays the store. Tables, flows, and the dashboard stay as they are.
 
-Today's JSON is contract v1. It has no version field:
+That wide JSON is the lab's contract v1. It has no version field:
 
 ```json
 {
@@ -54,7 +54,7 @@ Today's JSON is contract v1. It has no version field:
 }
 ```
 
-v1 stays accepted during the migration. A later ETL splits one message into three rows and copies that single quality onto all three. Contract v2 is the one that can carry a quality per signal. The simulator and the flow keep publishing v1.
+The flow keeps publishing that wide JSON until the edge stage. The contract the repository checks is v2, in `contracts/telemetry-v2.schema.json`: `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. The wide message no longer passes that check.
 
 ## Consequences
 
@@ -62,4 +62,4 @@ v1 stays accepted during the migration. A later ETL splits one message into thre
 - A `bad` sensor still marks the other two signals of that reading.
 - A new signal still needs a schema change while the wide table is the store. On the target, the new measurement is a row. `asset_limits` still closes `signal` to `temperature`, `pressure`, and `vibration`, so a fourth name opens that `CHECK` and adds its limits row.
 - The migration —a new table, history backfill, the minute aggregate, and the panels— stays outside this text.
-- v2 is named and not implemented.
+- v2 is the schema under check. The flow still publishes the wide JSON.
