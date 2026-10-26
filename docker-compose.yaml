@@ -82,7 +82,7 @@ services:
           memory: 64M
 
   # ===========================================================
-  # INSTANCE 1: OT INGESTION / DRIVERS (OPC UA, Modbus, S7, etc.)
+  # INSTANCE 1: OT INGESTION (Modbus TCP)
   # ===========================================================
   node-red-ingestion:
     image: nodered/node-red:4.0.9
@@ -95,7 +95,6 @@ services:
       - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
       - NODE_RED_ADMIN_USER=${NODE_RED_ADMIN_USER}
       - NODE_RED_ADMIN_PASSWORD=${NODE_RED_ADMIN_PASSWORD}
-      - OPCUA_ENDPOINT=${OPCUA_ENDPOINT}
       - MODBUS_HOST=${MODBUS_HOST}
       - MODBUS_PORT=${MODBUS_PORT}
       - MODBUS_UNIT_ID=${MODBUS_UNIT_ID}
