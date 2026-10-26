@@ -2,7 +2,7 @@
 
 [English](adr-ot-it.en.md)
 
-Estado: aceptada. 2026-10-24. El alcance del producto, y las fases que todavía no están en el código, están en [adr-scope.md](adr-scope.md). Este texto es la decisión del laboratorio, y el código de este repo todavía la implementa tal cual.
+Estado: aceptada. 2026-10-24. El alcance del producto y las fases pendientes están en [adr-scope.md](adr-scope.md). Este texto es la decisión del laboratorio. La frontera y el tópico siguen en el código. El camino opcional de OPC UA salió en la fase 1.
 
 ## Contexto
 
@@ -44,7 +44,6 @@ Estos límites siguen siendo de laboratorio:
 - Hay una sola cuenta MQTT. `allow_anonymous false` y no hay ACL. Quien tiene `MQTT_USER` y `MQTT_PASSWORD` publica y se suscribe a cualquier tópico.
 - El puerto `1883` se publica en el host. TimescaleDB escucha en `127.0.0.1:5435`.
 - `rejected` es un tópico plano.
-- El camino opcional de OPC UA usa el modo de seguridad `None`, el del simulador de laboratorio.
 
 El compose, los flujos y los tópicos quedan como están.
 

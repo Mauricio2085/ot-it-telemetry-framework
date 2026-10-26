@@ -4,7 +4,7 @@
 
 El producto monitorea un motor mecánico crítico: temperatura de rodamientos y vibración, leídas por Modbus TCP. La presión, la bomba, el compresor y OPC UA quedan fuera. OPC UA sigue siendo un estándar OT de un cliente, no del producto.
 
-El código de este repositorio sigue siendo el laboratorio del que salió. El recorte todavía no está aplicado. La decisión, de dónde viene y las fases están en [docs/adr-scope.md](docs/adr-scope.md).
+El código de este repositorio sigue siendo el laboratorio del que salió, sin OPC UA. La bomba, el compresor y la presión siguen. La decisión, de dónde viene y las fases están en [docs/adr-scope.md](docs/adr-scope.md).
 
 ## De dónde viene
 
@@ -17,9 +17,9 @@ Las palabras `good`, `uncertain` y `bad` salen del modelo de estado de OPC UA de
 
 ## Fases
 
-Cada fase es un cambio de código posterior. Ninguna está hecha.
+Cada fase es un cambio de código posterior. La fase 1 está hecha. Las fases 2 y 3 no.
 
-1. Quitar OPC UA: la pestaña de ingesta, el paquete de Node-RED, `OPCUA_ENDPOINT` y la guía de Prosys.
+1. Quitar OPC UA. Hecha: salieron la pestaña de ingesta, el paquete de Node-RED, `OPCUA_ENDPOINT` y la guía de Prosys. Modbus, el simulador y el contrato ancho siguen.
 2. Dejar solo `critical-motor-01`. Salen `mqtt-simulator`, la bomba y el compresor. El contrato ancho sigue durante esta fase.
 3. Guardar el perfil del motor en filas: `bearing_temperature` y `vibration`, una fila por señal, en el mapa Modbus HR0, HR1 y HR2. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
 
@@ -36,4 +36,4 @@ Cambia las contraseñas de `.env` antes de usar el stack fuera de esta máquina.
 
 Grafana queda en `http://localhost:3001`, dashboard **Asset Health**. Los editores de Node-RED piden usuario en `http://localhost:1881` y `http://localhost:1882`.
 
-La arquitectura, los puertos y el contrato del código actual —el laboratorio, todavía sin recortar— están en el [README en inglés](README.md).
+La arquitectura, los puertos y el contrato del código actual —el laboratorio, ya sin OPC UA— están en el [README en inglés](README.md).

@@ -2,7 +2,7 @@
 
 [Español](adr-measurements.md)
 
-Status: accepted. 2026-10-22. The product scope, and the phases not yet in the code, are in [adr-scope.en.md](adr-scope.en.md). This text is the lab decision, and the code in this repo still implements it as written.
+Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Phases 2 and 3 are not in the code yet. This text is the lab decision, and the wide contract is still implemented as written.
 
 ## Context
 

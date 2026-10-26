@@ -4,11 +4,11 @@
 
 Estado: aceptada. 2026-10-25.
 
-Esta decisión no cambia el código. El árbol sigue siendo el laboratorio hasta que las fases de abajo se implementen.
+La fase 1 está hecha. La bomba, el compresor y la presión siguen en el árbol hasta las fases 2 y 3.
 
 ## De dónde viene
 
-Este repositorio parte de [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). El código que está en el árbol es ese laboratorio: tres activos simulados, tres señales fijas y un camino opcional de OPC UA.
+Este repositorio parte de [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). El código que está en el árbol salió de ese laboratorio: tres activos simulados y tres señales fijas. El camino opcional de OPC UA salió en la fase 1.
 
 De ese laboratorio este producto adopta dos decisiones, tal como quedaron escritas:
 
@@ -33,11 +33,11 @@ Los límites de la temperatura de rodamientos, hasta que una hoja de datos los r
 
 ## Fases
 
-Ninguna está hecha. Cada una deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
+La fase 1 está hecha. Las fases 2 y 3 no. Cada una deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
 
 ### 1. Quitar OPC UA
 
-Sale la pestaña de ingesta, `node-red-contrib-opcua`, `OPCUA_ENDPOINT` y la guía de Prosys. Modbus, el simulador y el contrato ancho siguen.
+Hecha. Salió la pestaña de ingesta, `node-red-contrib-opcua`, `OPCUA_ENDPOINT` y la guía de Prosys. Modbus, el simulador y el contrato ancho siguen.
 
 Comprobación: el flujo de ingesta no tiene nodos OPC UA y el motor sigue publicando.
 
@@ -68,6 +68,6 @@ Una bomba, un conveyor u OPC UA pedido por un cliente es un perfil nuevo. OPC UA
 
 ## Consecuencias
 
-- Quien levante el stack hoy ve la bomba, el compresor, la presión y la pestaña OPC UA. Eso es el laboratorio, no el alcance de arriba.
+- Quien levante el stack hoy ve la bomba, el compresor y la presión. La pestaña OPC UA ya no está. La bomba y el compresor siguen siendo el laboratorio, no el alcance de arriba.
 - Los textos de Modbus, condición, registro, historial y rechazos describen ese código hasta que la fase correspondiente los alcance.
 - La frontera del broker, el tópico, el registro, la condición por promedio de un minuto y el historial de un minuto se quedan. La fase 3 cambia la forma de la fila, no esa frontera.

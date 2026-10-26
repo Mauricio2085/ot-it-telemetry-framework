@@ -2,7 +2,7 @@
 
 [Español](adr-ot-it.md)
 
-Status: accepted. 2026-10-24. The product scope, and the phases not yet in the code, are in [adr-scope.en.md](adr-scope.en.md). This text is the lab decision, and the code in this repo still implements it as written.
+Status: accepted. 2026-10-24. The product scope and the phases still ahead are in [adr-scope.en.md](adr-scope.en.md). This text is the lab decision. The boundary and the topic are still in the code. The optional OPC UA path left in phase 1.
 
 ## Context
 
@@ -44,7 +44,6 @@ These limits stay lab limits:
 - There is one MQTT account. `allow_anonymous false`, and there is no ACL. Whoever has `MQTT_USER` and `MQTT_PASSWORD` can publish and subscribe to any topic.
 - Port `1883` is published on the host. TimescaleDB listens on `127.0.0.1:5435`.
 - `rejected` is a flat topic.
-- The optional OPC UA path uses security mode `None`, the mode of the lab simulator.
 
 The compose file, the flows, and the topics stay as they are.
 

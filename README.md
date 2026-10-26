@@ -2,7 +2,7 @@
 
 This product monitors one critical mechanical motor: bearing temperature and vibration, read over Modbus TCP. Pressure, the pump, the compressor, and OPC UA are outside that scope. OPC UA stays a client's OT standard, not part of the product.
 
-The code in this repository is still the lab it was copied from. Nothing below "Current code" has been cut yet. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).
+The code in this repository is still the lab it was copied from, without OPC UA. The pump, the compressor, and pressure are still in the tree. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).
 
 ## Where it comes from
 
@@ -15,15 +15,15 @@ The quality words `good`, `uncertain`, and `bad` come from the OPC UA status mod
 
 ## Phases
 
-Each phase is a later code change. None of them is done.
+Each phase is a later code change. Phase 1 is done. Phases 2 and 3 are not.
 
-1. Remove OPC UA: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide.
+1. Remove OPC UA. Done: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide are gone. Modbus, the simulator, and the wide contract stay.
 2. Keep only `critical-motor-01`. Remove `mqtt-simulator`, the pump, and the compressor. The wide contract stays through this phase.
 3. Store the motor profile as rows: `bearing_temperature` and `vibration`, one row per signal, on the Modbus map HR0, HR1, and HR2. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
 
 ## Current code
 
-The sections below describe the lab baseline still in the tree.
+The sections below describe the lab baseline still in the tree, after OPC UA left.
 
 End-to-end industrial telemetry pipeline for critical asset health monitoring. Three simulated critical assets (a pump, a compressor, and a motor) publish temperature, pressure, and vibration. The stack ingests those signals, checks the payload, stores them as a time series, and charts them.
 
@@ -33,7 +33,6 @@ End-to-end industrial telemetry pipeline for critical asset health monitoring. T
 | --- | --- | --- | --- |
 | `mqtt-simulator` | Publishes the telemetry JSON straight to Mosquitto | `critical-pump-01`, `critical-compressor-01` | On |
 | `modbus-slave` + Node-RED Modbus tab | Modbus TCP holding registers → scaled JSON → MQTT | `critical-motor-01` | On |
-| Prosys OPC UA | Optional Windows-host simulator → Node-RED OPC UA tab | `critical-pump-01` | Off |
 
 Each `asset_id` names the equipment. The source column only says how its readings reach the edge.
 
@@ -87,23 +86,23 @@ Colors follow ISA-101 for high-performance HMIs: `normal` is gray, and color is 
 
 The dashboard is provisioned from `grafana/dashboards/asset-health.json` and cannot be saved from the Grafana UI. Edit the file instead; Grafana reloads it within about 10 seconds, and the browser shows the change after a page refresh. Rows and tiles repeat over the assets in `asset_limits`, so a new asset shows up without editing the JSON.
 
-Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)), [docs/opcua-prosys.en.md](docs/opcua-prosys.en.md) ([español](docs/opcua-prosys.md)).
+Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)).
 
 ### Pipeline
 
 ```text
-mqtt-simulator ──────────────────────────────┐
-                                             │  QoS 1
-modbus-slave ──► Node-RED (Modbus TCP) ──────┼──► Mosquitto
-                                             │      │  +/+/+/telemetry
-Prosys OPC UA ─► Node-RED (OPC UA, off) ─────┘      ▼
-                                              Node-RED ETL
-                                                    │  validate, then insert
-                                                    ▼
-                                               TimescaleDB
-                                                    │
-                                                    ▼
-                                                 Grafana
+mqtt-simulator ─────────────────────────┐
+                                        │  QoS 1
+modbus-slave ──► Node-RED (Modbus TCP) ─┴──► Mosquitto
+                                               │  +/+/+/telemetry
+                                               ▼
+                                          Node-RED ETL
+                                               │  validate, then insert
+                                               ▼
+                                          TimescaleDB
+                                               │
+                                               ▼
+                                            Grafana
 ```
 
 `ot-net` holds the simulator, the Modbus slave, and the ingestion editor. `it-net` holds the ETL, TimescaleDB, and Grafana. Mosquitto is attached to both, so a reading crosses only as an MQTT message. A name on the other network does not resolve. Each Node-RED also prohibits the other Docker subnets, so a guessed IP is refused. TimescaleDB is published only on `127.0.0.1:5435`, so another machine on the LAN cannot open it. Grafana and the ETL use the name `timescaledb` on `it-net`.
@@ -124,7 +123,7 @@ Grafana login comes from `GF_SECURITY_ADMIN_USER` and `GF_SECURITY_ADMIN_PASSWOR
 
 ### Quick start
 
-Docker is required. The MQTT simulator and the Modbus TCP path start with the stack. No Windows host tools are required for the demo.
+Docker is required. The MQTT simulator and the Modbus TCP path start with the stack.
 
 ```bash
 cp .env.example .env
@@ -136,16 +135,6 @@ Change the passwords in `.env` before using the stack outside this machine. Firs
 Services use `restart: on-failure`: Docker restarts a container that crashes, but does not start the stack when Docker itself starts. After a reboot, run `docker compose up -d` again. On Docker Desktop with WSL, containers started by Docker at boot can come up before the WSL files exist, with empty bind mounts: TimescaleDB fails to start and Grafana loads no dashboard.
 
 Open Grafana at `http://localhost:3001` and select **Asset Health**. Within about a minute you should see tiles and trend rows for `critical-pump-01`, `critical-compressor-01`, and `critical-motor-01`.
-
-### Optional OT source: Prosys OPC UA
-
-The OPC UA ingestion tab is disabled by default so it does not compete with `mqtt-simulator` on the same topic. To use Prosys instead:
-
-1. Stop or remove the simulator: `docker compose stop mqtt-simulator` (or scale it to 0). This also stops `critical-compressor-01`, which only comes from the simulator.
-2. Run Prosys on the Windows host and set `OPCUA_ENDPOINT` in `.env`.
-3. Enable the **OPC UA Ingestion** tab in the ingestion editor at `http://localhost:1881`.
-
-Full setup: [docs/opcua-prosys.en.md](docs/opcua-prosys.en.md).
 
 ### What the payload looks like
 
@@ -179,7 +168,6 @@ Modbus values arrive as integers in holding registers and are scaled in Node-RED
 - Grafana 12.0.4 picks the Y-axis tick step on its own; there is no fixed step per panel.
 - Dashboard trends read `sensor_readings`. A range older than seven days loses the line; the minute aggregate still has the summary.
 - Database changes after the first start are applied by hand with `psql`; there is no migration tool.
-- OPC UA security mode is `None` when that optional path is enabled. That matches the lab simulator and is not a plant connection.
 - Modbus RTU is not implemented (serial / USB horizon only).
 - After `docker compose stop modbus-slave`, the Node-RED Modbus client does not reconnect on its own; run `docker compose restart node-red-ingestion`. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md#reconnecting-after-the-slave-stops).
 
@@ -193,4 +181,4 @@ The running code still stores three fixed signals in columns, so condition, marg
 - **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
 - **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.
 
-The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA leaves first, then the pump and the compressor, then the motor profile is stored as one row per signal.
+The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA has left. The pump and the compressor leave next, then the motor profile is stored as one row per signal.

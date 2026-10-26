@@ -4,11 +4,11 @@
 
 Status: accepted. 2026-10-25.
 
-This decision does not change the code. The tree stays the lab until the phases below are implemented.
+Phase 1 is done. The pump, the compressor, and pressure stay in the tree until phases 2 and 3.
 
 ## Where it comes from
 
-This repository starts from [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). The code in the tree is that lab: three simulated assets, three fixed signals, and an optional OPC UA path.
+This repository starts from [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). The code in the tree came from that lab: three simulated assets and three fixed signals. The optional OPC UA path left in phase 1.
 
 This product adopts two decisions from that lab, as they were written:
 
@@ -33,11 +33,11 @@ Bearing-temperature limits, until a datasheet replaces them, are the ones the la
 
 ## Phases
 
-None of them is done. Each one leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
+Phase 1 is done. Phases 2 and 3 are not. Each one leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
 
 ### 1. Remove OPC UA
 
-The ingestion tab, `node-red-contrib-opcua`, `OPCUA_ENDPOINT`, and the Prosys guide go. Modbus, the simulator, and the wide contract stay.
+Done. The ingestion tab, `node-red-contrib-opcua`, `OPCUA_ENDPOINT`, and the Prosys guide are gone. Modbus, the simulator, and the wide contract stay.
 
 Check: the ingestion flow has no OPC UA nodes, and the motor still publishes.
 
@@ -68,6 +68,6 @@ A pump, a conveyor, or OPC UA asked for by a client is a new profile. OPC UA arr
 
 ## Consequences
 
-- Anyone who starts the stack today still sees the pump, the compressor, pressure, and the OPC UA tab. That is the lab, not the scope above.
+- Anyone who starts the stack today still sees the pump, the compressor, and pressure. The OPC UA tab is gone. The pump and the compressor are still the lab, not the scope above.
 - The Modbus, condition, registry, history, and rejection texts describe that code until the phase that replaces them.
 - The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 3 changes the shape of the row, not that boundary.
