@@ -15,9 +15,9 @@ This product adopts two decisions from that lab, as they were written:
 | Decision | Text | What is adopted |
 | --- | --- | --- |
 | OT/IT boundary and topic | [adr-ot-it.en.md](adr-ot-it.en.md), accepted 2026-10-24 | OT and IT meet only at the broker. The topic is `plant/area/asset/telemetry`. |
-| Measurements | [adr-measurements.en.md](adr-measurements.en.md), accepted 2026-10-22 | Signals follow the failure mode. The target is one row per signal, with its own quality. While the wide contract is in force, the table stays in columns. |
+| Measurements | [adr-measurements.en.md](adr-measurements.en.md), accepted 2026-10-22 | Signals follow the failure mode. The target is one row per signal, with its own quality. This product applies that target in phase 3, and does not keep the wide contract as the framework schema. |
 
-Those two decisions stand. This text narrows which asset and which signals they apply to.
+Those two decisions stand. The motor is the first profile, not the schema for every client.
 
 ## Decision
 
@@ -33,15 +33,41 @@ Bearing-temperature limits, until a datasheet replaces them, are the ones the la
 
 ## Phases
 
-Each phase is a separate code change. None of them is done.
+None of them is done. Each one leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
 
-1. **Remove OPC UA.** The ingestion tab, `node-red-contrib-opcua`, `OPCUA_ENDPOINT`, and the Prosys guide. Modbus stays.
-2. **Keep only the motor.** `mqtt-simulator`, `critical-pump-01`, and `critical-compressor-01` leave the compose file, the registry, the limits, and the demo script. The pump's `uncertain` episode leaves with the pump. The motor unbalance and the vibration-transmitter failure stay: they are the reference case.
-3. **Keep two signals.** The contract, the database, the ETL, the Modbus map, and the dashboard become `bearing_temperature` and `vibration`. `pressure` goes. The `temperature` field is renamed to `bearing_temperature`. The product register map is: HR0 bearing temperature × 10, HR1 vibration × 100, HR2 device status (`0` good, `1` uncertain, `2` bad). The code today still has pressure on HR1 and status on HR3.
-4. **One row per signal.** After phase 3, the migration to one row per signal and contract v2 with a quality per signal. That remains the decision in [adr-measurements.en.md](adr-measurements.en.md). It is not mixed into phases 1 to 3.
+### 1. Remove OPC UA
+
+The ingestion tab, `node-red-contrib-opcua`, `OPCUA_ENDPOINT`, and the Prosys guide go. Modbus, the simulator, and the wide contract stay.
+
+Check: the ingestion flow has no OPC UA nodes, and the motor still publishes.
+
+### 2. Keep only the motor
+
+`mqtt-simulator`, `critical-pump-01`, and `critical-compressor-01` leave the compose file, the registry, the limits, and `scripts/demo-prep.sh`. The registry type becomes `motor`. The pump's `uncertain` episode leaves with the pump. The unbalance and the vibration-transmitter failure stay: they are the reference case.
+
+The contract stays wide in this phase. The slave still publishes pressure. With one asset, a healthy minute holds 11 or 12 readings; the "readings / min" amber threshold moves from 30 to 10. A database created earlier does not drop old rows when the init scripts run: recreate the volume.
+
+Check: `asset_condition` has one row, the motor, and the demo script no longer restarts the simulator.
+
+### 3. Motor profile as rows
+
+One phase, in four stages, so the two signals do not freeze as columns:
+
+1. **Contract.** The message carries `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. This profile publishes `bearing_temperature` and `vibration`. The slave has one device status, so both signals leave with that same quality. The shape already allows another source to set them apart.
+2. **Edge.** HR0 is bearing temperature × 10, HR1 is vibration × 100, and HR2 is the status (`0` good, `1` uncertain, `2` bad). The ETL splits the message into one row per signal and rejects a signal with no `asset_limits` row.
+3. **Database.** `sensor_readings` stores `time`, `asset_id`, `signal`, `value`, and `quality`. Plant and area stay on `assets`. `asset_limits` is the signal catalog: the `CHECK` no longer closes the signal names. Condition and the one-minute aggregate group by signal. "Readings / min" counts timestamps, not rows, and stays at 11 or 12.
+4. **Dashboard.** Two trends, bearing temperature and vibration, with limits read from `asset_limits`. The detail table is one row per signal. A new signal shows up in the condition and in that table without a schema change. Its trend is a panel that belongs to the profile which brings it.
+
+The limits do not change: bearing temperature at 55 °C, 80 °C, and 90 °C; vibration at 2.8 mm/s and 4.5 mm/s. A database created earlier is recreated with the volume, because the continuous aggregate cannot be altered in place.
+
+Check: vibration moves through warning and alarm, the 25 mm/s `bad` reading does not move the condition, and bearing temperature stays inside its band.
+
+### Not a phase
+
+A pump, a conveyor, or OPC UA asked for by a client is a new profile. OPC UA arrives as that client's adapter, not as part of the product.
 
 ## Consequences
 
 - Anyone who starts the stack today still sees the pump, the compressor, pressure, and the OPC UA tab. That is the lab, not the scope above.
-- The Modbus, condition, registry, history, and rejection texts describe that code. The product map and signals are phase 3.
-- The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 4 changes the shape of the row, not that boundary.
+- The Modbus, condition, registry, history, and rejection texts describe that code until the phase that replaces them.
+- The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 3 changes the shape of the row, not that boundary.

@@ -18,9 +18,8 @@ The quality words `good`, `uncertain`, and `bad` come from the OPC UA status mod
 Each phase is a later code change. None of them is done.
 
 1. Remove OPC UA: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide.
-2. Keep only `critical-motor-01`. Remove `mqtt-simulator`, the pump, and the compressor.
-3. Keep two signals: `bearing_temperature` and `vibration`. Drop `pressure` and rename `temperature`. The product register map is HR0 bearing temperature, HR1 vibration, HR2 device status.
-4. One row per signal, and contract v2 with a quality per signal. That stays the measurements decision, after phase 3.
+2. Keep only `critical-motor-01`. Remove `mqtt-simulator`, the pump, and the compressor. The wide contract stays through this phase.
+3. Store the motor profile as rows: `bearing_temperature` and `vibration`, one row per signal, on the Modbus map HR0, HR1, and HR2. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
 
 ## Current code
 
@@ -194,4 +193,4 @@ The running code still stores three fixed signals in columns, so condition, marg
 - **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
 - **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.
 
-The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA leaves first, then the pump and the compressor, then pressure. The migration to one row per signal, and contract v2 with a quality per signal, comes after that.
+The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA leaves first, then the pump and the compressor, then the motor profile is stored as one row per signal.

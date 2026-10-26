@@ -20,9 +20,8 @@ Las palabras `good`, `uncertain` y `bad` salen del modelo de estado de OPC UA de
 Cada fase es un cambio de código posterior. Ninguna está hecha.
 
 1. Quitar OPC UA: la pestaña de ingesta, el paquete de Node-RED, `OPCUA_ENDPOINT` y la guía de Prosys.
-2. Dejar solo `critical-motor-01`. Salen `mqtt-simulator`, la bomba y el compresor.
-3. Dejar dos señales: `bearing_temperature` y `vibration`. Sale `pressure` y `temperature` cambia de nombre. El mapa del producto es HR0 temperatura de rodamientos, HR1 vibración, HR2 estado del equipo.
-4. Una fila por señal, y el contrato v2 con una calidad por señal. Sigue siendo la decisión de mediciones, después de la fase 3.
+2. Dejar solo `critical-motor-01`. Salen `mqtt-simulator`, la bomba y el compresor. El contrato ancho sigue durante esta fase.
+3. Guardar el perfil del motor en filas: `bearing_temperature` y `vibration`, una fila por señal, en el mapa Modbus HR0, HR1 y HR2. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
 
 ## Arranque
 
