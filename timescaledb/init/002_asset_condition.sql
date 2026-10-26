@@ -44,12 +44,6 @@ $$;
 INSERT INTO asset_limits
     (asset_id, signal, unit, nominal, alarm_low, warning_low, warning_high, alarm_high, reference)
 VALUES
-    ('critical-pump-01',       'temperature', '°C',   70.0, NULL, NULL,  80.0,  90.0,  'lab default'),
-    ('critical-pump-01',       'pressure',    'bar',  2.5,  1.5,  2.0,   3.0,   3.5,   'lab default'),
-    ('critical-pump-01',       'vibration',   'mm/s', 1.0,  NULL, NULL,  2.8,   4.5,   'ISO 10816-3'),
-    ('critical-compressor-01', 'temperature', '°C',   85.0, NULL, NULL,  95.0,  105.0, 'lab default'),
-    ('critical-compressor-01', 'pressure',    'bar',  6.0,  4.5,  5.0,   7.0,   7.5,   'lab default'),
-    ('critical-compressor-01', 'vibration',   'mm/s', 1.5,  NULL, NULL,  2.8,   4.5,   'ISO 10816-3'),
     ('critical-motor-01',      'temperature', '°C',   55.0, NULL, NULL,  80.0,  90.0,  'lab default'),
     ('critical-motor-01',      'vibration',   'mm/s', 0.8,  NULL, NULL,  2.8,   4.5,   'ISO 10816-3')
 ON CONFLICT (asset_id, signal) DO UPDATE SET

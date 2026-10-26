@@ -12,15 +12,13 @@ CREATE TABLE IF NOT EXISTS assets (
     asset_type  TEXT NOT NULL,
     criticality TEXT NOT NULL,
     CONSTRAINT assets_type_check
-        CHECK (asset_type IN ('pump', 'compressor', 'motor')),
+        CHECK (asset_type IN ('motor')),
     CONSTRAINT assets_criticality_check
         CHECK (criticality IN ('critical', 'standard'))
 );
 
 INSERT INTO assets (asset_id, plant, area, asset_type, criticality)
 VALUES
-    ('critical-pump-01',       'plant-01', 'area-01', 'pump',       'critical'),
-    ('critical-compressor-01', 'plant-01', 'area-01', 'compressor', 'critical'),
     ('critical-motor-01',      'plant-01', 'area-01', 'motor',      'critical')
 ON CONFLICT (asset_id) DO UPDATE SET
     plant       = EXCLUDED.plant,

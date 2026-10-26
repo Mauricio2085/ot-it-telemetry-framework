@@ -37,7 +37,7 @@
       "id": 1,
       "type": "stat",
       "title": "Readings / min",
-      "description": "Readings stored in the last minute. Amber below 30, which means at least one asset has gone quiet. A healthy minute is 33 to 36.",
+      "description": "Readings stored in the last minute. Amber below 10. A healthy minute is 11 or 12.",
       "gridPos": { "h": 4, "w": 8, "x": 0, "y": 1 },
       "datasource": { "type": "grafana-postgresql-datasource", "uid": "timescaledb" },
       "fieldConfig": {
@@ -48,7 +48,7 @@
             "mode": "absolute",
             "steps": [
               { "color": "#F5A623", "value": null },
-              { "color": "#3A3F45", "value": 30 }
+              { "color": "#3A3F45", "value": 10 }
             ]
           }
         },

@@ -37,7 +37,7 @@ PORT = int(os.environ.get("MODBUS_BIND_PORT", "502"))
 UNIT_ID = int(os.environ.get("MODBUS_UNIT_ID", "1"))
 UPDATE_INTERVAL_S = float(os.environ.get("UPDATE_INTERVAL_S", "1"))
 
-# Nominal points of critical-motor-01; soft-noise shape matches mqtt-simulator.
+# Nominal points of critical-motor-01. Soft noise is a slow sine plus small jitter.
 MOTOR_TEMPERATURE = 55.0
 MOTOR_PRESSURE = 1.0
 MOTOR_VIBRATION = 0.8

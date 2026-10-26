@@ -37,30 +37,7 @@ services:
           memory: 128M
 
   # ===========================================================
-  # MQTT TELEMETRY SIMULATOR (default OT source for the lab)
-  # ===========================================================
-  mqtt-simulator:
-    build: ./mqtt-simulator
-    container_name: edge-mqtt-simulator
-    restart: on-failure
-    environment:
-      - TZ=America/Bogota
-      - MQTT_HOST=mosquitto
-      - MQTT_PORT=1883
-      - MQTT_USER=${MQTT_USER}
-      - MQTT_PASSWORD=${MQTT_PASSWORD}
-      - PUBLISH_INTERVAL_S=5
-    depends_on:
-      - mosquitto
-    networks:
-      - ot-net
-    deploy:
-      resources:
-        limits:
-          memory: 64M
-
-  # ===========================================================
-  # MODBUS TCP SLAVE (second OT source — holding registers)
+  # MODBUS TCP SLAVE (OT source — holding registers)
   # ===========================================================
   modbus-slave:
     build: ./modbus-slave
