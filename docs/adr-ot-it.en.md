@@ -6,11 +6,11 @@ Status: accepted. 2026-10-24. The product scope and the phases still ahead are i
 
 ## Context
 
-The lab splits the edge into two networks. A reading from the pump, the compressor, or the motor has to reach TimescaleDB, and the process that speaks Modbus or OPC UA does not open the database.
+The lab splits the edge into two networks. A reading from the motor has to reach TimescaleDB, and the process that speaks Modbus does not open the database.
 
 | Network | Who is there |
 | --- | --- |
-| `ot-net` | `mqtt-simulator`, `modbus-slave`, `node-red-ingestion` |
+| `ot-net` | `modbus-slave`, `node-red-ingestion` |
 | `it-net` | `node-red-etl`, TimescaleDB, Grafana |
 | both | Mosquitto |
 
@@ -24,7 +24,7 @@ The message crosses at QoS 1 on `plant-01/area-01/<asset_id>/telemetry`. The ETL
 | --- | --- | --- |
 | 1 | `plant-01` | `assets.plant` |
 | 2 | `area-01` | `assets.area` |
-| 3 | `critical-pump-01` | `assets.asset_id`. The body carries the same `asset_id` |
+| 3 | `critical-motor-01` | `assets.asset_id`. The body carries the same `asset_id` |
 | 4 | `telemetry` | Message class |
 
 The topic's plant and area have to match the `assets` row. A message that breaks the contract is published on the topic `rejected` and stored in `rejected_messages`.

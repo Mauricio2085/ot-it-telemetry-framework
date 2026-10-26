@@ -2,7 +2,7 @@
 
 [English](adr-measurements.en.md)
 
-Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). Las fases 2 y 3 todavía no están en el código. Este texto es la decisión del laboratorio, y el contrato ancho sigue tal cual.
+Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). La fase 3 todavía no está en el código. Este texto es la decisión del laboratorio, y el contrato ancho sigue tal cual.
 
 ## Contexto
 

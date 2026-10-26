@@ -8,16 +8,14 @@ The script is `timescaledb/init/004_assets.sql`.
 
 ## Table: `assets`
 
-| Asset                    | Plant     | Area     | Type         | Criticality |
-| ------------------------ | --------- | -------- | ------------ | ----------- |
-| `critical-pump-01`       | `plant-01` | `area-01` | `pump`       | `critical`  |
-| `critical-compressor-01` | `plant-01` | `area-01` | `compressor` | `critical`  |
-| `critical-motor-01`      | `plant-01` | `area-01` | `motor`      | `critical`  |
+| Asset               | Plant      | Area      | Type    | Criticality |
+| ------------------- | ---------- | --------- | ------- | ----------- |
+| `critical-motor-01` | `plant-01` | `area-01` | `motor` | `critical`  |
 
 Plant and area are free text: a new site is a new row. Type and criticality are closed lists.
 
-- `asset_type`: `pump`, `compressor`, `motor`.
-- `criticality`: `critical`, `standard`. The three lab assets are `critical`. `standard` is there for an asset whose failure does not stop the plant.
+- `asset_type`: `motor`.
+- `criticality`: `critical`, `standard`. The motor is `critical`. `standard` is there for an asset whose failure does not stop the plant.
 
 `sensor_readings` and `asset_limits` reference `assets`. `ON DELETE RESTRICT` and `ON UPDATE RESTRICT` refuse a delete or a rename of an asset that already has readings or limits.
 
@@ -49,14 +47,14 @@ docker compose up -d timescaledb
 docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/040_assets.sql'
 ```
 
-`docker compose up -d timescaledb` is required so the container sees a newly mounted script. The script can be run more than once: it updates the three rows and does not create the keys again when they already exist.
+`docker compose up -d timescaledb` is required so the container sees a newly mounted script. The script can be run more than once: it updates the motor row and does not create the keys again when they already exist. It does not delete other rows. A database that still has the pump or the compressor is recreated with the volume.
 
 A new asset is added in the script's `INSERT` and the script is applied again. Until that row exists, the ETL rejects its messages.
 
 ## Check
 
-1. The query returns the three rows in the table above.
+1. The query returns the row in the table above.
 2. A message with an unknown `asset_id` does not show up in `sensor_readings`.
-3. A `critical-pump-01` message published on `plant-99/area-01/...` does not show up either.
-4. `DELETE FROM assets WHERE asset_id = 'critical-pump-01'` fails on the foreign key.
-5. Readings from the three assets keep arriving.
+3. A `critical-motor-01` message published on `plant-99/area-01/...` does not show up either.
+4. `DELETE FROM assets WHERE asset_id = 'critical-motor-01'` fails on the foreign key.
+5. Readings from the motor keep arriving.

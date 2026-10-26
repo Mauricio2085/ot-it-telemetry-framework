@@ -10,18 +10,11 @@ One row per asset and signal. An empty limit (`NULL`) means it does not apply.
 
 | Asset | Signal | Unit | Nominal | Alarm low | Warning low | Warning high | Alarm high | Reference |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `critical-pump-01` | temperature | °C | 70 | — | — | 80 | 90 | lab default |
-| `critical-pump-01` | pressure | bar | 2.5 | 1.5 | 2.0 | 3.0 | 3.5 | lab default |
-| `critical-pump-01` | vibration | mm/s | 1.0 | — | — | 2.8 | 4.5 | ISO 10816-3 |
-| `critical-compressor-01` | temperature | °C | 85 | — | — | 95 | 105 | lab default |
-| `critical-compressor-01` | pressure | bar | 6.0 | 4.5 | 5.0 | 7.0 | 7.5 | lab default |
-| `critical-compressor-01` | vibration | mm/s | 1.5 | — | — | 2.8 | 4.5 | ISO 10816-3 |
 | `critical-motor-01` | temperature | °C | 55 | — | — | 80 | 90 | lab default |
 | `critical-motor-01` | vibration | mm/s | 0.8 | — | — | 2.8 | 4.5 | ISO 10816-3 |
 
 - `nominal` is the value of the signal on a healthy machine. It is the starting point of the margin used (see below).
-- Only pressure has low limits: falling pressure points to loss of prime or cavitation in the pump, or a leak in the compressor.
-- `critical-motor-01` has no pressure row on purpose. A motor has no process pressure; the signal is stored but not evaluated.
+- `critical-motor-01` has no pressure row on purpose. A motor has no process pressure; the signal is stored but not evaluated. It has no low limits either.
 - Vibration uses the ISO 10816-3 limits for medium machines on rigid foundations. The rest are lab values; in a plant they would come from the manufacturer's datasheet and the machine's own history.
 
 The database rejects a row when the signal is not `temperature`, `pressure`, or `vibration`, when it has no limit at all, when the limits are out of order (for example, a high warning above the high alarm), or when `nominal` falls outside the warning band.
@@ -68,14 +61,13 @@ The larger of the two is kept, and it never goes below 0.
 
 | Case | Margin used |
 | --- | --- |
-| Pump at 70.1 °C (nominal 70, alarm 90) | 0.5 % |
+| Motor at 55.1 °C (nominal 55, alarm 90) | 0.3 % |
 | Motor vibration at 2.8 mm/s, the warning limit (nominal 0.8, alarm 4.5) | 54 % |
-| Pump pressure at 1.65 bar (nominal 2.5, low alarm 1.5) | 85 % |
 | Motor vibration at 5.0 mm/s (alarm 4.5) | 114 % |
 
 Above 100 % the signal is past its alarm limit, and the number tells by how much. It is not capped, so two assets in alarm can still be told apart.
 
-Measuring from `nominal` instead of from zero matters: a healthy pump at 70 °C against a 90 °C alarm is 78 % "of the limit" but has used almost none of its margin.
+Measuring from `nominal` instead of from zero matters: a healthy motor at 55 °C against a 90 °C alarm is 61 % "of the limit" but has used none of its margin.
 
 ### Data availability
 
@@ -95,16 +87,15 @@ Three ideas answer different questions:
 
 Every reading carries `quality`, with the three OPC UA levels: `good`, `uncertain`, or `bad`. The source decides it, the edge translates it, and IT validates it:
 
-- **Source.** The Modbus slave reports a status in HR3; the MQTT simulator plays both device and edge and sets the quality itself.
+- **Source.** The Modbus slave reports a status in HR3.
 - **Edge.** Node-RED maps the HR3 code to the contract vocabulary, and turns an unknown code into `bad`.
 - **IT.** The ETL rejects a message whose quality is missing or outside the vocabulary, and `sensor_readings_quality_check` in `003_reading_quality.sql` does the same for direct inserts.
 
-The demo has one episode per abnormal level:
+The reference case has one `bad` episode:
 
 | Asset | When | Quality | What happens |
 | --- | --- | --- | --- |
 | `critical-motor-01` | Minute 1:00–1:30 of its 13-minute cycle | `bad` | The vibration transmitter saturates at 25 mm/s. The readings are left out, so there is no false alarm |
-| `critical-pump-01` | 2 minutes in every 10, from minute 5 | `uncertain` | The temperature sensor reads 3 °C high. The readings are used, so the margin used rises a little, and they are flagged |
 
 Quality is one value per message, so it covers the three signals at once: when one sensor fails, the source reports the worst quality and the other two signals carry it too. Per-signal quality is the accepted target in [adr-measurements.en.md](adr-measurements.en.md): one row per signal, with this wide table still in force.
 
@@ -127,7 +118,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 A script that is newly mounted in `docker-compose.yaml` needs `docker compose up -d timescaledb` first, so the container sees it.
 
-Both scripts are idempotent: each can run several times and always leaves the same result, with no duplicate rows. Schema changes follow these rules so that both new and existing databases end up the same:
+Both scripts are idempotent: each can run several times and always leaves the same result, with no duplicate rows. Running the limits script again does not remove rows for other assets. A database that still has the pump or the compressor is recreated with the volume. Schema changes follow these rules so that both new and existing databases end up the same:
 
 - `CREATE TABLE IF NOT EXISTS` does not change a table that already exists. Columns added later go through `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, as `nominal` does.
 - PostgreSQL has no `ADD CONSTRAINT IF NOT EXISTS`. New constraints go inside a `DO` block that checks `pg_constraint` first, as `asset_limits_nominal_check` does.
@@ -141,7 +132,7 @@ A direct `UPDATE` in the database also works, but leaves the file and the databa
 
 ## Check
 
-1. The query returns three rows, with `data_availability_pct` at 100 for every asset.
+1. The query returns one row, the motor, with `data_availability_pct` at 100.
 2. Restart the motor cycle with `docker compose restart modbus-slave` and query again at these points:
 
    | Cycle minute | `condition` of `critical-motor-01` |
@@ -154,7 +145,5 @@ A direct `UPDATE` in the database also works, but leaves the file and the databa
 
    Each change arrives about 30 s after the reading crosses the threshold, because of the 1-minute average. For the same reason, the motor briefly passes through `warning` on the way down after maintenance.
 
-3. The pump and the compressor stay `normal` for the whole cycle, with margin used near 0 %, except while the pump temperature is `uncertain`.
-4. About one minute after the restart, the motor has `bad_1m` above 0 and `data_quality = bad`, while `condition` stays `normal`.
-5. During the pump calibration episode, the pump has `uncertain_1m` above 0 and `data_quality = uncertain`.
-6. Stop the slave with `docker compose stop modbus-slave`. A minute later the motor is `stale` with `samples_1m = 0`. To recover, run `docker compose start modbus-slave` and then `docker compose restart node-red-ingestion`. See the reconnect note in [modbus-tcp.en.md](modbus-tcp.en.md).
+3. About one minute after the restart, the motor has `bad_1m` above 0 and `data_quality = bad`, while `condition` stays `normal`.
+4. Stop the slave with `docker compose stop modbus-slave`. A minute later the motor is `stale` with `samples_1m = 0`. To recover, run `docker compose start modbus-slave` and then `docker compose restart node-red-ingestion`. See the reconnect note in [modbus-tcp.en.md](modbus-tcp.en.md).

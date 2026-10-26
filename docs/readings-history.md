@@ -54,7 +54,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 ## Comprobación
 
-1. `sensor_readings_1m` tiene filas de los tres activos.
+1. `sensor_readings_1m` tiene filas del motor.
 2. En un minuto con lecturas `bad`, `bad` coincide con el crudo y el promedio no las incluye.
 3. Los trozos con más de un día aparecen con `is_compressed = true`. El que cerró hace menos de un día, y el que sigue abierto, siguen en `false`.
 4. Existen tres jobs: refresco del agregado, compresión y retención.

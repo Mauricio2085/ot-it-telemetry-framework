@@ -4,7 +4,7 @@
 
 Estado: aceptada. 2026-10-25.
 
-La fase 1 está hecha. La bomba, el compresor y la presión siguen en el árbol hasta las fases 2 y 3.
+La fase 1 y la fase 2 están hechas. La presión sigue en el árbol hasta la fase 3.
 
 ## De dónde viene
 
@@ -33,7 +33,7 @@ Los límites de la temperatura de rodamientos, hasta que una hoja de datos los r
 
 ## Fases
 
-La fase 1 está hecha. Las fases 2 y 3 no. Cada una deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
+Las fases 1 y 2 están hechas. La fase 3 no. Cada una deja el stack levantable y cierra en sus propios commits. La fila del framework es activo, señal, valor, calidad y tiempo. Otro activo es otro perfil: su tipo, sus señales, sus límites y su adaptador de campo. La tabla no se vuelve a migrar por eso.
 
 ### 1. Quitar OPC UA
 
@@ -43,7 +43,7 @@ Comprobación: el flujo de ingesta no tiene nodos OPC UA y el motor sigue public
 
 ### 2. Dejar solo el motor
 
-Salen `mqtt-simulator`, `critical-pump-01` y `critical-compressor-01` del compose, del registro, de los límites y de `scripts/demo-prep.sh`. El tipo del registro queda `motor`. El episodio `uncertain` de la bomba sale con ella. El desbalance y la falla del transmisor de vibración se quedan: son el caso de referencia.
+Hecha. Salieron `mqtt-simulator`, `critical-pump-01` y `critical-compressor-01` del compose, del registro, de los límites y de `scripts/demo-prep.sh`. El tipo del registro quedó `motor`. El episodio `uncertain` de la bomba salió con ella. El desbalance y la falla del transmisor de vibración se quedan: son el caso de referencia.
 
 En esta fase el contrato sigue ancho. El esclavo todavía publica presión. Con un solo activo, un minuto sano tiene 11 o 12 lecturas; el ámbar de «lecturas / min» pasa de 30 a 10. Una base ya creada no pierde las filas viejas con los scripts de inicio: se recrea el volumen.
 
@@ -68,6 +68,6 @@ Una bomba, un conveyor u OPC UA pedido por un cliente es un perfil nuevo. OPC UA
 
 ## Consecuencias
 
-- Quien levante el stack hoy ve la bomba, el compresor y la presión. La pestaña OPC UA ya no está. La bomba y el compresor siguen siendo el laboratorio, no el alcance de arriba.
+- Quien levante el stack hoy ve el motor y la presión. La bomba, el compresor y la pestaña OPC UA ya no están. La presión sigue en el contrato ancho, hasta la fase 3.
 - Los textos de Modbus, condición, registro, historial y rechazos describen ese código hasta que la fase correspondiente los alcance.
 - La frontera del broker, el tópico, el registro, la condición por promedio de un minuto y el historial de un minuto se quedan. La fase 3 cambia la forma de la fila, no esa frontera.

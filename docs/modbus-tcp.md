@@ -4,7 +4,7 @@
 
 Este mapa es el del código actual, con la presión en HR1 y el estado en HR3. El mapa del producto —temperatura de rodamientos y vibración— es la fase 3 de [adr-scope.md](adr-scope.md).
 
-`modbus-slave` es la segunda fuente OT de este laboratorio. Es un servidor Modbus TCP con cuatro holding registers para `critical-motor-01`: tres lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el mismo contrato JSON de telemetría que el simulador MQTT.
+`modbus-slave` es la fuente OT de este laboratorio. Es un servidor Modbus TCP con cuatro holding registers para `critical-motor-01`: tres lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el JSON de telemetría.
 
 El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Modbus es solo el camino por el que sus lecturas llegan al edge.
 
@@ -21,7 +21,7 @@ El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Mo
 - Puerto en el contenedor: `502`
 - Puerto en el host: `1502` (`localhost:1502` desde la máquina)
 - Punto nominal: ~55 °C, ~1.0 bar, ~0.8 mm/s
-- El ruido suave es el mismo patrón que `mqtt-simulator` (seno lento más jitter pequeño)
+- El ruido suave es un seno lento más un jitter pequeño
 
 ## Escenario de desbalance
 
@@ -76,7 +76,7 @@ El `asset_id` del payload tiene que coincidir con el segmento de activo del tóp
 2. Desde el host, un cliente Modbus TCP contra `localhost:1502`, unit `1`, lee los holding registers 0–3.
 3. En el editor de ingesta (`http://localhost:1881`), el tab **Modbus TCP Ingestion** está activo y el getter muestra actividad cada 5 segundos.
 4. Una lectura MQTT de `plant-01/area-01/critical-motor-01/telemetry` devuelve el JSON de arriba.
-5. Grafana **Asset Health** lista `critical-motor-01` junto a `critical-pump-01` y `critical-compressor-01`.
+5. Grafana **Asset Health** lista `critical-motor-01`.
 6. Un minuto después de `docker compose restart modbus-slave`, llegan seis lecturas del motor con `vibration = 25` y `quality = bad`, y la tarjeta del motor sigue en `NORMAL` con "6 bad readings discarded".
 
 Si el paso 3 falla, confirma que `modbus-slave` está sano y que Node-RED terminó de instalar `node-red-contrib-modbus` (el primer arranque puede tardar un minuto).

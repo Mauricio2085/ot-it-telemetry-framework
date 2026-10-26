@@ -54,7 +54,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 ## Check
 
-1. `sensor_readings_1m` has rows for the three assets.
+1. `sensor_readings_1m` has rows for the motor.
 2. In a minute that contains `bad` readings, `bad` matches the raw table and the average leaves them out.
 3. Chunks older than one day show `is_compressed = true`. The one that closed less than a day ago, and the one still open, stay `false`.
 4. Three jobs exist: aggregate refresh, compression, and retention.

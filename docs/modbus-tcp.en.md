@@ -4,7 +4,7 @@
 
 This map is the one in the code today, with pressure on HR1 and status on HR3. The product map — bearing temperature and vibration — is phase 3 of [adr-scope.en.md](adr-scope.en.md).
 
-`modbus-slave` is the second OT source in this lab. It is a Modbus TCP server that exposes four holding registers for `critical-motor-01`: three readings and a device status. `node-red-ingestion` polls them every 5 seconds, scales the readings, translates the status into the contract quality, and publishes the same telemetry JSON contract used by the MQTT simulator.
+`modbus-slave` is the OT source in this lab. It is a Modbus TCP server that exposes four holding registers for `critical-motor-01`: three readings and a device status. `node-red-ingestion` polls them every 5 seconds, scales the readings, translates the status into the contract quality, and publishes the telemetry JSON.
 
 The asset is a motor, not a "Modbus pump". The `asset_id` names the equipment; Modbus is only how its readings reach the edge.
 
@@ -21,7 +21,7 @@ The asset is a motor, not a "Modbus pump". The `asset_id` names the equipment; M
 - Container port: `502`
 - Host port: `1502` (`localhost:1502` from the host)
 - Nominal point: ~55 °C, ~1.0 bar, ~0.8 mm/s
-- Soft noise matches `mqtt-simulator` (slow sine drift plus small jitter)
+- Soft noise is a slow sine drift plus small jitter
 
 ## Unbalance scenario
 
@@ -76,7 +76,7 @@ The `asset_id` in the payload must match the asset segment of the topic, or the 
 2. From the host, a Modbus TCP client against `localhost:1502`, unit `1`, can read holding registers 0–3.
 3. In the ingestion editor (`http://localhost:1881`), the **Modbus TCP Ingestion** tab is enabled and the getter shows activity every 5 seconds.
 4. An MQTT read of `plant-01/area-01/critical-motor-01/telemetry` returns the JSON above.
-5. Grafana **Asset Health** lists `critical-motor-01` next to `critical-pump-01` and `critical-compressor-01`.
+5. Grafana **Asset Health** lists `critical-motor-01`.
 6. One minute after `docker compose restart modbus-slave`, six motor readings arrive with `vibration = 25` and `quality = bad`, and the motor tile stays `NORMAL` with "6 bad readings discarded".
 
 If step 3 fails, confirm `modbus-slave` is healthy and that Node-RED finished installing `node-red-contrib-modbus` (first start can take a minute).

@@ -6,11 +6,11 @@ Estado: aceptada. 2026-10-24. El alcance del producto y las fases pendientes est
 
 ## Contexto
 
-El laboratorio separa el borde en dos redes. La lectura de la bomba, el compresor o el motor tiene que llegar a TimescaleDB, y el proceso que habla Modbus u OPC UA no abre la base.
+El laboratorio separa el borde en dos redes. La lectura del motor tiene que llegar a TimescaleDB, y el proceso que habla Modbus no abre la base.
 
 | Red | Quién está |
 | --- | --- |
-| `ot-net` | `mqtt-simulator`, `modbus-slave`, `node-red-ingestion` |
+| `ot-net` | `modbus-slave`, `node-red-ingestion` |
 | `it-net` | `node-red-etl`, TimescaleDB, Grafana |
 | las dos | Mosquitto |
 
@@ -24,7 +24,7 @@ El mensaje cruza con QoS 1 en `plant-01/area-01/<asset_id>/telemetry`. El ETL se
 | --- | --- | --- |
 | 1 | `plant-01` | `assets.plant` |
 | 2 | `area-01` | `assets.area` |
-| 3 | `critical-pump-01` | `assets.asset_id`. El cuerpo trae el mismo `asset_id` |
+| 3 | `critical-motor-01` | `assets.asset_id`. El cuerpo trae el mismo `asset_id` |
 | 4 | `telemetry` | Clase de mensaje |
 
 Planta y área del tópico tienen que coincidir con la fila de `assets`. Un mensaje que no cumple el contrato se publica en el tópico `rejected` y se guarda en `rejected_messages`.

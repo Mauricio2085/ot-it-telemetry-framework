@@ -63,4 +63,4 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 1. A message whose `quality` is outside the list does not show up in `sensor_readings`.
 2. That message shows up once in `rejected_messages`, with every reason in `errors`, and it also arrives on `mosquitto_sub -t rejected` authenticated as `MQTT_USER`.
 3. An `asset_id` that is not in `assets` does the same.
-4. A valid reading from the three assets adds no row to `rejected_messages`.
+4. A valid reading from the motor adds no row to `rejected_messages`.

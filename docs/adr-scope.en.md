@@ -4,7 +4,7 @@
 
 Status: accepted. 2026-10-25.
 
-Phase 1 is done. The pump, the compressor, and pressure stay in the tree until phases 2 and 3.
+Phase 1 and phase 2 are done. Pressure stays in the tree until phase 3.
 
 ## Where it comes from
 
@@ -33,7 +33,7 @@ Bearing-temperature limits, until a datasheet replaces them, are the ones the la
 
 ## Phases
 
-Phase 1 is done. Phases 2 and 3 are not. Each one leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
+Phases 1 and 2 are done. Phase 3 is not. Each one leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
 
 ### 1. Remove OPC UA
 
@@ -43,7 +43,7 @@ Check: the ingestion flow has no OPC UA nodes, and the motor still publishes.
 
 ### 2. Keep only the motor
 
-`mqtt-simulator`, `critical-pump-01`, and `critical-compressor-01` leave the compose file, the registry, the limits, and `scripts/demo-prep.sh`. The registry type becomes `motor`. The pump's `uncertain` episode leaves with the pump. The unbalance and the vibration-transmitter failure stay: they are the reference case.
+Done. `mqtt-simulator`, `critical-pump-01`, and `critical-compressor-01` left the compose file, the registry, the limits, and `scripts/demo-prep.sh`. The registry type is `motor`. The pump's `uncertain` episode left with the pump. The unbalance and the vibration-transmitter failure stay: they are the reference case.
 
 The contract stays wide in this phase. The slave still publishes pressure. With one asset, a healthy minute holds 11 or 12 readings; the "readings / min" amber threshold moves from 30 to 10. A database created earlier does not drop old rows when the init scripts run: recreate the volume.
 
@@ -68,6 +68,6 @@ A pump, a conveyor, or OPC UA asked for by a client is a new profile. OPC UA arr
 
 ## Consequences
 
-- Anyone who starts the stack today still sees the pump, the compressor, and pressure. The OPC UA tab is gone. The pump and the compressor are still the lab, not the scope above.
+- Anyone who starts the stack today sees the motor and pressure. The pump, the compressor, and the OPC UA tab are gone. Pressure stays in the wide contract until phase 3.
 - The Modbus, condition, registry, history, and rejection texts describe that code until the phase that replaces them.
 - The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 3 changes the shape of the row, not that boundary.

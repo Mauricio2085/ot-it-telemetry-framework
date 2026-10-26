@@ -8,20 +8,13 @@ TimescaleDB clasifica cada activo crítico como `normal`, `warning`, `alarm` o `
 
 Una fila por activo y señal. Un límite vacío (`NULL`) significa que no aplica.
 
-| Activo                   | Señal       | Unidad | Nominal | Alarm bajo | Warning bajo | Warning alto | Alarm alto | Referencia  |
-| ------------------------ | ----------- | ------ | ------- | ---------- | ------------ | ------------ | ---------- | ----------- |
-| `critical-pump-01`       | temperature | °C     | 70      | —          | —            | 80           | 90         | lab default |
-| `critical-pump-01`       | pressure    | bar    | 2.5     | 1.5        | 2.0          | 3.0          | 3.5        | lab default |
-| `critical-pump-01`       | vibration   | mm/s   | 1.0     | —          | —            | 2.8          | 4.5        | ISO 10816-3 |
-| `critical-compressor-01` | temperature | °C     | 85      | —          | —            | 95           | 105        | lab default |
-| `critical-compressor-01` | pressure    | bar    | 6.0     | 4.5        | 5.0          | 7.0          | 7.5        | lab default |
-| `critical-compressor-01` | vibration   | mm/s   | 1.5     | —          | —            | 2.8          | 4.5        | ISO 10816-3 |
-| `critical-motor-01`      | temperature | °C     | 55      | —          | —            | 80           | 90         | lab default |
-| `critical-motor-01`      | vibration   | mm/s   | 0.8     | —          | —            | 2.8          | 4.5        | ISO 10816-3 |
+| Activo              | Señal       | Unidad | Nominal | Alarm bajo | Warning bajo | Warning alto | Alarm alto | Referencia  |
+| ------------------- | ----------- | ------ | ------- | ---------- | ------------ | ------------ | ---------- | ----------- |
+| `critical-motor-01` | temperature | °C     | 55      | —          | —            | 80           | 90         | lab default |
+| `critical-motor-01` | vibration   | mm/s   | 0.8     | —          | —            | 2.8          | 4.5        | ISO 10816-3 |
 
 - `nominal` es el valor de la señal en una máquina sana. Es el punto de partida del margen consumido (ver más abajo).
-- Solo la presión tiene límites bajos: una presión que cae indica pérdida de cebado o cavitación en la bomba, o una fuga en el compresor.
-- `critical-motor-01` no tiene fila de presión a propósito. Un motor no tiene presión de proceso; la señal se guarda, pero no se evalúa.
+- `critical-motor-01` no tiene fila de presión a propósito. Un motor no tiene presión de proceso; la señal se guarda, pero no se evalúa. Tampoco tiene límites bajos.
 - La vibración usa los límites de ISO 10816-3 para máquinas medianas sobre base rígida. Los demás son valores de laboratorio; en planta saldrían de la hoja de datos del fabricante y del historial de la máquina.
 
 La base rechaza una fila si la señal no es `temperature`, `pressure` o `vibration`, si no tiene ningún límite, si los límites están desordenados (por ejemplo, un warning alto mayor que el alarm alto) o si `nominal` queda fuera de la banda de warning.
@@ -66,16 +59,15 @@ límite bajo:  (nominal − promedio) / (nominal − alarm_low)
 
 Se queda el mayor de los dos, y nunca baja de 0.
 
-| Caso                                                                            | Margen consumido |
-| ------------------------------------------------------------------------------- | ---------------- |
-| Bomba a 70.1 °C (nominal 70, alarma 90)                                         | 0.5 %            |
+| Caso                                                                             | Margen consumido |
+| -------------------------------------------------------------------------------- | ---------------- |
+| Motor a 55.1 °C (nominal 55, alarma 90)                                          | 0.3 %            |
 | Vibración del motor en 2.8 mm/s, el límite de warning (nominal 0.8, alarma 4.5) | 54 %             |
-| Presión de la bomba en 1.65 bar (nominal 2.5, alarma baja 1.5)                  | 85 %             |
-| Vibración del motor en 5.0 mm/s (alarma 4.5)                                    | 114 %            |
+| Vibración del motor en 5.0 mm/s (alarma 4.5)                                     | 114 %            |
 
 Por encima de 100 %, la señal ya pasó su límite de alarma, y el número dice por cuánto. No tiene tope, así que dos activos en alarma se pueden seguir distinguiendo.
 
-Medir desde `nominal` y no desde cero importa: una bomba sana a 70 °C con alarma en 90 °C está al 78 % "del límite", pero casi no ha consumido margen.
+Medir desde `nominal` y no desde cero importa: un motor sano a 55 °C con alarma en 90 °C está al 61 % "del límite", pero no ha consumido margen.
 
 ### Disponibilidad de datos
 
@@ -95,16 +87,15 @@ Tres ideas responden preguntas distintas:
 
 Cada lectura lleva `quality`, con los tres niveles de OPC UA: `good`, `uncertain` o `bad`. La fuente la decide, el borde la traduce y la TI la valida:
 
-- **Fuente.** El slave Modbus reporta un estado en HR3; el simulador MQTT hace de equipo y de borde a la vez y pone la calidad él mismo.
+- **Fuente.** El slave Modbus reporta un estado en HR3.
 - **Borde.** Node-RED traduce el código de HR3 al vocabulario del contrato y convierte un código desconocido en `bad`.
 - **TI.** El ETL rechaza un mensaje sin calidad o con una calidad fuera del vocabulario, y `sensor_readings_quality_check`, en `003_reading_quality.sql`, hace lo mismo con las inserciones directas.
 
-El demo tiene un episodio por cada nivel anormal:
+El caso de referencia tiene un episodio `bad`:
 
-| Activo              | Cuándo                                     | Calidad     | Qué pasa                                                                                                                       |
-| ------------------- | ------------------------------------------ | ----------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `critical-motor-01` | Minuto 1:00–1:30 de su ciclo de 13 minutos | `bad`       | El transmisor de vibración se satura en 25 mm/s. Las lecturas quedan fuera, así que no hay falsa alarma                        |
-| `critical-pump-01`  | 2 minutos de cada 10, desde el minuto 5    | `uncertain` | El sensor de temperatura marca 3 °C de más. Las lecturas se usan, así que el margen consumido sube un poco, y quedan señaladas |
+| Activo              | Cuándo                                     | Calidad | Qué pasa                                                                                                |
+| ------------------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| `critical-motor-01` | Minuto 1:00–1:30 de su ciclo de 13 minutos | `bad`   | El transmisor de vibración se satura en 25 mm/s. Las lecturas quedan fuera, así que no hay falsa alarma |
 
 La calidad es un solo valor por mensaje, así que cubre las tres señales a la vez: cuando un sensor falla, la fuente informa la peor calidad y las otras dos señales también la llevan. La calidad por señal queda escrita como destino en [adr-measurements.md](adr-measurements.md): una fila por señal, y esta tabla ancha sigue vigente.
 
@@ -127,7 +118,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 Un script recién montado en `docker-compose.yaml` necesita antes `docker compose up -d timescaledb`, para que el contenedor lo vea.
 
-Los dos scripts son idempotentes: cada uno se puede ejecutar varias veces y siempre deja el mismo resultado, sin filas duplicadas. Los cambios de esquema siguen estas reglas, para que una base nueva y una existente terminen iguales:
+Los dos scripts son idempotentes: cada uno se puede ejecutar varias veces y siempre deja el mismo resultado, sin filas duplicadas. Volver a ejecutar el de límites no quita filas de otros activos. Una base que todavía tiene la bomba o el compresor se recrea con el volumen. Los cambios de esquema siguen estas reglas, para que una base nueva y una existente terminen iguales:
 
 - `CREATE TABLE IF NOT EXISTS` no modifica una tabla que ya existe. Las columnas agregadas después van por `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, como `nominal`.
 - PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`. Las reglas nuevas van dentro de un bloque `DO` que primero revisa `pg_constraint`, como `asset_limits_nominal_check`.
@@ -141,7 +132,7 @@ Un `UPDATE` directo en la base también funciona, pero deja el archivo y la base
 
 ## Comprobación
 
-1. La consulta devuelve tres filas, con `data_availability_pct` en 100 para todos los activos.
+1. La consulta devuelve una fila, la del motor, con `data_availability_pct` en 100.
 2. Reinicia el ciclo del motor con `docker compose restart modbus-slave` y consulta de nuevo en estos momentos:
    | Minuto del ciclo | `condition` de `critical-motor-01` |
    | --- | --- |
@@ -153,7 +144,5 @@ Un `UPDATE` directo en la base también funciona, pero deja el archivo y la base
 
    Cada cambio llega unos 30 s después de que la lectura cruza el umbral, por el promedio de un minuto. Por la misma razón, al bajar después del mantenimiento el motor pasa brevemente por `warning`.
 
-3. La bomba y el compresor siguen en `normal` durante todo el ciclo, con un margen consumido cercano a 0 %, salvo mientras la temperatura de la bomba está `uncertain`.
-4. Cerca de un minuto después del reinicio, el motor tiene `bad_1m` mayor que 0 y `data_quality = bad`, mientras `condition` sigue en `normal`.
-5. Durante el episodio de calibración de la bomba, la bomba tiene `uncertain_1m` mayor que 0 y `data_quality = uncertain`.
-6. Detén el slave con `docker compose stop modbus-slave`. Un minuto después, el motor queda en `stale` con `samples_1m = 0`. Para volver, ejecuta `docker compose start modbus-slave` y después `docker compose restart node-red-ingestion`. Ver la nota de reconexión en [modbus-tcp.md](modbus-tcp.md).
+3. Cerca de un minuto después del reinicio, el motor tiene `bad_1m` mayor que 0 y `data_quality = bad`, mientras `condition` sigue en `normal`.
+4. Detén el slave con `docker compose stop modbus-slave`. Un minuto después, el motor queda en `stale` con `samples_1m = 0`. Para volver, ejecuta `docker compose start modbus-slave` y después `docker compose restart node-red-ingestion`. Ver la nota de reconexión en [modbus-tcp.md](modbus-tcp.md).
