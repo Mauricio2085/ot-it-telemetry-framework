@@ -1,0 +1,8 @@
+{
+  "asset_id": "critical-motor-01",
+  "ts": "2026-10-15T21:00:00.000Z",
+  "signals": [
+    { "name": "bearing_temperature", "value": "55.0", "quality": "good" },
+    { "name": "vibration", "value": 0.8, "quality": "good" }
+  ]
+}

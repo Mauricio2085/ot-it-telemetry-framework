@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check telemetry contract v1 and the Asset Health dashboard."""
+"""Check telemetry contract v2 and the Asset Health dashboard."""
 
 import json
 import sys
@@ -8,16 +8,23 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 ROOT = Path(__file__).resolve().parents[1]
-SCHEMA_PATH = ROOT / "contracts" / "telemetry-v1.schema.json"
+SCHEMA_PATH = ROOT / "contracts" / "telemetry-v2.schema.json"
 FIXTURES = ROOT / "contracts" / "fixtures"
 DASHBOARD_PATH = ROOT / "grafana" / "dashboards" / "asset-health.json"
 
-VALID = ("valid.json", "valid-extra.json")
+VALID = (
+    "valid.json",
+    "valid-extra.json",
+    "valid-split-quality.json",
+    "valid-other-signal.json",
+)
 INVALID = (
     "invalid-missing-quality.json",
-    "invalid-temperature-type.json",
+    "invalid-value-type.json",
     "invalid-quality.json",
     "invalid-ts.json",
+    "invalid-wide.json",
+    "invalid-empty-signals.json",
 )
 
 

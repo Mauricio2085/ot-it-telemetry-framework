@@ -1,0 +1,7 @@
+{
+  "asset_id": "critical-motor-01",
+  "ts": "2026-10-15T21:00:00.000Z",
+  "signals": [
+    { "name": "example_signal", "value": 1.0, "quality": "uncertain" }
+  ]
+}
