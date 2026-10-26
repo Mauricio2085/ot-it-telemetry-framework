@@ -1,0 +1,315 @@
+[
+    {
+        "id": "381ca58481ca40b3",
+        "type": "tab",
+        "label": "Telemetry ETL",
+        "disabled": false,
+        "info": "Subscribes to +/+/+/telemetry, validates each payload, checks the asset against the registry, and inserts the reading into sensor_readings. Plant and area still come from the topic; they must match the assets row. A refused message is published to the topic rejected and inserted into rejected_messages.",
+        "env": []
+    },
+    {
+        "id": "9ab28967418d5930",
+        "type": "mqtt-broker",
+        "name": "Mosquitto Broker",
+        "broker": "mosquitto",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "0a4795f3533d5ec7",
+        "type": "postgreSQLConfig",
+        "name": "TimescaleDB",
+        "host": "timescaledb",
+        "hostFieldType": "str",
+        "port": 5432,
+        "portFieldType": "num",
+        "database": "POSTGRES_DB",
+        "databaseFieldType": "env",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": 10,
+        "maxFieldType": "num",
+        "idle": 1000,
+        "idleFieldType": "num",
+        "connectionTimeout": 10000,
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "env",
+        "userEnv": "POSTGRES_USER",
+        "passwordFieldType": "env",
+        "passwordEnv": "POSTGRES_PASSWORD"
+    },
+    {
+        "id": "24921b7059ba8a68",
+        "type": "mqtt in",
+        "z": "381ca58481ca40b3",
+        "name": "Subscribe telemetry",
+        "topic": "+/+/+/telemetry",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "9ab28967418d5930",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 170,
+        "y": 320,
+        "wires": [
+            [
+                "d34f09b0cd51ef0a"
+            ]
+        ]
+    },
+    {
+        "id": "f0599f72902529db",
+        "type": "debug",
+        "z": "381ca58481ca40b3",
+        "name": "Debug db errors",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1040,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "d34f09b0cd51ef0a",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Validate and enrich",
+        "func": "msg.original = msg.payload;\nconst [plant, area, assetFromTopic] = msg.topic.split('/');\nconst p = msg.payload;\nconst errors = [];\nif (typeof p !== 'object' || p === null) {\n    errors.push('payload is not a JSON object');\n} else {\n    if (p.asset_id !== assetFromTopic) errors.push('asset_id does not match topic');\n    for (const field of ['temperature', 'pressure', 'vibration']) {\n        if (typeof p[field] !== 'number' || !Number.isFinite(p[field])) {\n            errors.push(`${field} is not a number`);\n        }\n    }\n    if (Number.isNaN(Date.parse(p.ts))) errors.push('ts is not a valid timestamp');\n    if (!['good', 'uncertain', 'bad'].includes(p.quality)) {\n        errors.push('quality is not good, uncertain or bad');\n    }\n}\nif (errors.length > 0) {\n    msg.errors = errors;\n    return [null, msg];\n}\nmsg.reading = {\n    time: p.ts,\n    plant,\n    area,\n    asset_id: p.asset_id,\n    temperature: p.temperature,\n    pressure: p.pressure,\n    vibration: p.vibration,\n    quality: p.quality\n};\nmsg.payload = msg.reading;\nmsg.params = [p.asset_id];\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 430,
+        "y": 320,
+        "wires": [
+            [
+                "a7c31e90b4d25f68"
+            ],
+            [
+                "e4b7c1a09d2f4863"
+            ]
+        ]
+    },
+    {
+        "id": "a7c31e90b4d25f68",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Look up asset",
+        "query": "SELECT plant, area FROM assets WHERE asset_id = $1",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 680,
+        "y": 320,
+        "wires": [
+            [
+                "c5e82a17d9f0463b"
+            ]
+        ]
+    },
+    {
+        "id": "c5e82a17d9f0463b",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Match registry",
+        "func": "const reading = msg.reading;\nconst rows = Array.isArray(msg.payload) ? msg.payload : [];\nif (!reading) {\n    msg.errors = ['reading missing before registry check'];\n    return [null, msg];\n}\nif (rows.length === 0) {\n    msg.payload = reading;\n    msg.errors = ['asset_id is not in the asset registry'];\n    return [null, msg];\n}\nconst registered = rows[0];\nif (registered.plant !== reading.plant || registered.area !== reading.area) {\n    msg.payload = reading;\n    msg.errors = ['plant or area does not match the asset registry'];\n    return [null, msg];\n}\nmsg.payload = reading;\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 940,
+        "y": 320,
+        "wires": [
+            [
+                "769581bceb70b8b7"
+            ],
+            [
+                "e4b7c1a09d2f4863"
+            ]
+        ]
+    },
+    {
+        "id": "e4b7c1a09d2f4863",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Build rejection",
+        "func": "const originalTopic = typeof msg.topic === 'string' ? msg.topic : '';\nconst body = Object.prototype.hasOwnProperty.call(msg, 'original') ? msg.original : msg.payload;\nconst stored = (body !== null && typeof body === 'object' && !Array.isArray(body))\n    ? body\n    : { unparsed: body === undefined ? null : String(body) };\nconst rejectedAt = new Date().toISOString();\nmsg.payload = {\n    rejected_at: rejectedAt,\n    topic: originalTopic,\n    errors: msg.errors,\n    payload: stored\n};\nmsg.params = [rejectedAt, originalTopic, msg.errors, JSON.stringify(stored)];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 880,
+        "y": 400,
+        "wires": [
+            [
+                "f8a2d6c04e1b5973",
+                "b3c9e7a15d0f2846",
+                "86dd60c88c332de4"
+            ]
+        ]
+    },
+    {
+        "id": "f8a2d6c04e1b5973",
+        "type": "mqtt out",
+        "z": "381ca58481ca40b3",
+        "name": "Publish rejection",
+        "topic": "rejected",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "9ab28967418d5930",
+        "x": 1120,
+        "y": 380,
+        "wires": []
+    },
+    {
+        "id": "b3c9e7a15d0f2846",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Insert rejection",
+        "query": "INSERT INTO rejected_messages (rejected_at, topic, errors, payload)\nVALUES ($1, $2, $3, $4::jsonb)",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1120,
+        "y": 440,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "86dd60c88c332de4",
+        "type": "debug",
+        "z": "381ca58481ca40b3",
+        "name": "Debug invalid messages",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 810,
+        "y": 460,
+        "wires": []
+    },
+    {
+        "id": "c8e81525ba6d8750",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Insert reading",
+        "query": "INSERT INTO sensor_readings (time, plant, area, asset_id, temperature, pressure, vibration, quality)\nVALUES ($1, $2, $3, $4, $5, $6, $7, $8)\nON CONFLICT DO NOTHING;",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 920,
+        "y": 260,
+        "wires": [
+            [
+                "9ae7b948c64a599b"
+            ]
+        ]
+    },
+    {
+        "id": "769581bceb70b8b7",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Map to SQL params",
+        "func": "const r = msg.payload;\nmsg.params = [r.time, r.plant, r.area, r.asset_id, r.temperature, r.pressure, r.vibration, r.quality];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 260,
+        "wires": [
+            [
+                "c8e81525ba6d8750"
+            ]
+        ]
+    },
+    {
+        "id": "9be67596ecdd91ae",
+        "type": "catch",
+        "z": "381ca58481ca40b3",
+        "name": "Catch db errors",
+        "scope": [
+            "a7c31e90b4d25f68",
+            "b3c9e7a15d0f2846",
+            "c8e81525ba6d8750"
+        ],
+        "uncaught": false,
+        "x": 820,
+        "y": 140,
+        "wires": [
+            [
+                "f0599f72902529db"
+            ]
+        ]
+    },
+    {
+        "id": "9ae7b948c64a599b",
+        "type": "debug",
+        "z": "381ca58481ca40b3",
+        "name": "Debug valid records",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1140,
+        "y": 260,
+        "wires": []
+    }
+]

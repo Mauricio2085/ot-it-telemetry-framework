@@ -1,0 +1,223 @@
+networks:
+  ot-net:
+    driver: bridge
+  it-net:
+    driver: bridge
+
+volumes:
+  mosquitto_data:
+  mosquitto_log:
+  timescaledb_data:
+  grafana_data:
+services:
+  # ===========================================================
+  # BROKER MQTT LOCAL (Mosquitto)
+  # ===========================================================
+  mosquitto:
+    image: eclipse-mosquitto:2.0.22
+    container_name: edge-mosquitto
+    restart: on-failure
+    ports:
+      - "1883:1883" # Standard MQTT port
+    entrypoint: ["/bin/sh", "/usr/local/bin/mosquitto-auth-entrypoint.sh"]
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/docker-entrypoint.sh:/usr/local/bin/mosquitto-auth-entrypoint.sh:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    environment:
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    networks:
+      - ot-net
+      - it-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ===========================================================
+  # MQTT TELEMETRY SIMULATOR (default OT source for the lab)
+  # ===========================================================
+  mqtt-simulator:
+    build: ./mqtt-simulator
+    container_name: edge-mqtt-simulator
+    restart: on-failure
+    environment:
+      - TZ=America/Bogota
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - PUBLISH_INTERVAL_S=5
+    depends_on:
+      - mosquitto
+    networks:
+      - ot-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ===========================================================
+  # MODBUS TCP SLAVE (second OT source — holding registers)
+  # ===========================================================
+  modbus-slave:
+    build: ./modbus-slave
+    container_name: edge-modbus-slave
+    restart: on-failure
+    ports:
+      - "1502:502"
+    environment:
+      - TZ=America/Bogota
+      - MODBUS_BIND_HOST=0.0.0.0
+      - MODBUS_BIND_PORT=502
+      - MODBUS_UNIT_ID=1
+      - UPDATE_INTERVAL_S=1
+    networks:
+      - ot-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ===========================================================
+  # INSTANCE 1: OT INGESTION / DRIVERS (OPC UA, Modbus, S7, etc.)
+  # ===========================================================
+  node-red-ingestion:
+    image: nodered/node-red:4.0.9
+    container_name: edge-node-red-ingestion
+    restart: on-failure
+    ports:
+      - "1881:1880"
+    environment:
+      - TZ=America/Bogota
+      - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
+      - NODE_RED_ADMIN_USER=${NODE_RED_ADMIN_USER}
+      - NODE_RED_ADMIN_PASSWORD=${NODE_RED_ADMIN_PASSWORD}
+      - OPCUA_ENDPOINT=${OPCUA_ENDPOINT}
+      - MODBUS_HOST=${MODBUS_HOST}
+      - MODBUS_PORT=${MODBUS_PORT}
+      - MODBUS_UNIT_ID=${MODBUS_UNIT_ID}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    user: "0:0"
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./nodered/ingestion/data:/data
+      - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
+    depends_on:
+      - mosquitto
+      - modbus-slave
+    networks:
+      - ot-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===========================================================
+  # INSTANCE 2: ETL / NORMALIZATION (MQTT -> TimescaleDB)
+  # ===========================================================
+  node-red-etl:
+    image: nodered/node-red:4.0.9
+    container_name: edge-node-red-etl
+    restart: on-failure
+    ports:
+      - "1882:1880"
+    environment:
+      - TZ=America/Bogota
+      - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
+      - NODE_RED_ADMIN_USER=${NODE_RED_ADMIN_USER}
+      - NODE_RED_ADMIN_PASSWORD=${NODE_RED_ADMIN_PASSWORD}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
+    user: "0:0"
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./nodered/etl/data:/data
+      - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
+    depends_on:
+      mosquitto:
+        condition: service_started
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - it-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ===========================================================
+  # TIME-SERIES STORAGE (PostgreSQL + TimescaleDB)
+  # ===========================================================
+  timescaledb:
+    image: timescale/timescaledb:2.30.2-pg17
+    container_name: edge-timescaledb
+    restart: on-failure
+    ports:
+      - "127.0.0.1:5435:5432"
+    environment:
+      - TZ=America/Bogota
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./timescaledb/init/001_schema.sql:/docker-entrypoint-initdb.d/010_schema.sql:ro
+      - ./timescaledb/init/002_asset_condition.sql:/docker-entrypoint-initdb.d/020_asset_condition.sql:ro
+      - ./timescaledb/init/003_reading_quality.sql:/docker-entrypoint-initdb.d/030_reading_quality.sql:ro
+      - ./timescaledb/init/004_assets.sql:/docker-entrypoint-initdb.d/040_assets.sql:ro
+      - ./timescaledb/init/005_readings_history.sql:/docker-entrypoint-initdb.d/050_readings_history.sql:ro
+      - ./timescaledb/init/006_rejected_messages.sql:/docker-entrypoint-initdb.d/060_rejected_messages.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - it-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ===========================================================
+  # VISUALIZATION (Grafana)
+  # ===========================================================
+  grafana:
+    image: grafana/grafana-oss:12.0.4
+    container_name: edge-grafana
+    restart: on-failure
+    ports:
+      - "3001:3000"
+    environment:
+      - TZ=America/Bogota
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+    depends_on:
+      timescaledb:
+        condition: service_healthy
+    networks:
+      - it-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
