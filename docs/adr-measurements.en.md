@@ -2,7 +2,7 @@
 
 [Español](adr-measurements.md)
 
-Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stage 1 of phase 3 is in the schema: the check watches contract v2. The flow still publishes the wide message. This text is the lab decision.
+Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stages 1 and 2 of phase 3 are done: the flow publishes contract v2 and the table stays wide. This text is the lab decision.
 
 ## Context
 
@@ -54,7 +54,7 @@ That wide JSON is the lab's contract v1. It has no version field:
 }
 ```
 
-The flow keeps publishing that wide JSON until the edge stage. The contract the repository checks is v2, in `contracts/telemetry-v2.schema.json`: `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. The wide message no longer passes that check.
+The flow publishes contract v2, in `contracts/telemetry-v2.schema.json`: `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. The wide message no longer passes that check. The table stays wide until stage 3.
 
 ## Consequences
 
@@ -62,4 +62,4 @@ The flow keeps publishing that wide JSON until the edge stage. The contract the 
 - A `bad` sensor still marks the other two signals of that reading.
 - A new signal still needs a schema change while the wide table is the store. On the target, the new measurement is a row. `asset_limits` still closes `signal` to `temperature`, `pressure`, and `vibration`, so a fourth name opens that `CHECK` and adds its limits row.
 - The migration —a new table, history backfill, the minute aggregate, and the panels— stays outside this text.
-- v2 is the schema under check. The flow still publishes the wide JSON.
+- v2 is the message the flow publishes. The table stays wide.

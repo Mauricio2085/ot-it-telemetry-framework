@@ -4,7 +4,7 @@
 
 Status: accepted. 2026-10-25.
 
-Phase 1 and phase 2 are done. Stage 1 of phase 3 is done. The slave keeps publishing pressure until stage 2.
+Phase 1 and phase 2 are done. Stages 1 and 2 of phase 3 are done. The `sensor_readings` row stays wide until stage 3.
 
 ## Where it comes from
 
@@ -33,7 +33,7 @@ Bearing-temperature limits, until a datasheet replaces them, are the ones the la
 
 ## Phases
 
-Phases 1 and 2 are done. Stage 1 of phase 3 is done. Stages 2, 3, and 4 are not. Each phase leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
+Phases 1 and 2 are done. Stages 1 and 2 of phase 3 are done. Stages 3 and 4 are not. Each phase leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
 
 ### 1. Remove OPC UA
 
@@ -53,8 +53,8 @@ Check: `asset_condition` has one row, the motor, and the demo script no longer r
 
 One phase, in four stages, so the two signals do not freeze as columns:
 
-1. **Contract.** Done. The schema is `contracts/telemetry-v2.schema.json`. The message carries `asset_id`, `ts`, and `signals`; each signal carries a name, a value, and a quality. The profile example publishes `bearing_temperature` and `vibration` with the same quality. Another example carries different qualities and passes. A name that is not part of this profile also passes: the schema does not close it. The wide message no longer passes. The slave and Node-RED still publish that wide message. Check: `scripts/check-contracts.py` accepts the profile, the split qualities, and the open name, and rejects the wide message.
-2. **Edge.** HR0 is bearing temperature × 10, HR1 is vibration × 100, and HR2 is the status (`0` good, `1` uncertain, `2` bad). The ETL splits the message into one row per signal and rejects a signal with no `asset_limits` row.
+1. **Contract.** Done. The schema is `contracts/telemetry-v2.schema.json`. The message carries `asset_id`, `ts`, and `signals`; each signal carries a name, a value, and a quality. The profile example publishes `bearing_temperature` and `vibration` with the same quality. Another example carries different qualities and passes. A name that is not part of this profile also passes: the schema does not close it. The wide message no longer passes the check. Check: `scripts/check-contracts.py` accepts the profile, the split qualities, and the open name, and rejects the wide message.
+2. **Edge.** Done. HR0 is bearing temperature × 10, HR1 is vibration × 100, and HR2 is the status (`0` good, `1` uncertain, `2` bad). The slave no longer publishes pressure. The ETL splits the signals and rejects one with no `asset_limits` row. The table stays wide, with one index per asset and time, so accepted signals fold into that row: `bearing_temperature` lands in the `temperature` column. If the accepted signals do not share one quality, the whole message is rejected. One table row per signal is stage 3. Check: the topic carries both signals, a signal outside `asset_limits` lands in `rejected_messages`, and `sensor_readings` still receives one row per instant.
 3. **Database.** `sensor_readings` stores `time`, `asset_id`, `signal`, `value`, and `quality`. Plant and area stay on `assets`. `asset_limits` is the signal catalog: the `CHECK` no longer closes the signal names. Condition and the one-minute aggregate group by signal. "Readings / min" counts timestamps, not rows, and stays at 11 or 12.
 4. **Dashboard.** Two trends, bearing temperature and vibration, with limits read from `asset_limits`. The detail table is one row per signal. A new signal shows up in the condition and in that table without a schema change. Its trend is a panel that belongs to the profile which brings it.
 
@@ -68,6 +68,6 @@ A pump, a conveyor, or OPC UA asked for by a client is a new profile. OPC UA arr
 
 ## Consequences
 
-- Anyone who starts the stack today sees the motor and pressure. The pump, the compressor, and the OPC UA tab are gone. The slave still publishes the wide message. The contract the repository checks is already the signal list.
+- Anyone who starts the stack today sees the motor, without pressure. The pump, the compressor, and the OPC UA tab are gone. The published message is already the signal list. `sensor_readings` stays wide.
 - The Modbus, condition, registry, history, and rejection texts describe that code until the phase that replaces them.
 - The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 3 changes the shape of the row, not that boundary.

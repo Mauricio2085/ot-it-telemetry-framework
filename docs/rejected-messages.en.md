@@ -12,9 +12,16 @@ The script is `timescaledb/init/006_rejected_messages.sql`.
 | --- | --- |
 | `payload is not a JSON object` | The body is not an object |
 | `asset_id does not match topic` | `asset_id` is not the third topic segment |
-| `temperature is not a number`, and the same for `pressure` and `vibration` | The signal is not a finite number |
+| `signals is not a list` | `signals` is missing or is not a list |
+| `signals is empty` | The list carries no signals |
+| `signal NAME value is not a number` | That signal's value is not a finite number |
+| `signal NAME quality is not good, uncertain or bad` | That signal's quality is missing or has another value |
+| `signal NAME is duplicated` | The name is repeated in the message |
+| `signal N has no name` | A signal has no name |
 | `ts is not a valid timestamp` | `ts` is not a timestamp |
-| `quality is not good, uncertain or bad` | `quality` is missing or has another value |
+| `signal NAME has no asset_limits row` | That signal is not in the asset's catalog |
+| `signal NAME cannot be stored in the wide row` | The catalog has it, and the wide table does not yet |
+| `signals do not share one quality` | The accepted signals carry different qualities; the wide row stores one |
 | `asset_id is not in the asset registry` | The asset is not in `assets` |
 | `plant or area does not match the asset registry` | The topic plant or area differs from that row |
 
@@ -60,7 +67,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 ## Check
 
-1. A message whose `quality` is outside the list does not show up in `sensor_readings`.
+1. A message whose signal quality is outside the list, or whose signal is not in `asset_limits`, does not store that signal in `sensor_readings`.
 2. That message shows up once in `rejected_messages`, with every reason in `errors`, and it also arrives on `mosquitto_sub -t rejected` authenticated as `MQTT_USER`.
 3. An `asset_id` that is not in `assets` does the same.
 4. A valid reading from the motor adds no row to `rejected_messages`.

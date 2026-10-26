@@ -12,9 +12,16 @@ El script está en `timescaledb/init/006_rejected_messages.sql`.
 | --- | --- |
 | `payload is not a JSON object` | El cuerpo no es un objeto |
 | `asset_id does not match topic` | El `asset_id` no es el tercer segmento del tópico |
-| `temperature is not a number`, y lo mismo para `pressure` y `vibration` | La señal no es un número finito |
+| `signals is not a list` | Falta `signals` o no es una lista |
+| `signals is empty` | La lista no trae señales |
+| `signal NAME value is not a number` | El valor de esa señal no es un número finito |
+| `signal NAME quality is not good, uncertain or bad` | La calidad de esa señal falta o trae otro valor |
+| `signal NAME is duplicated` | El nombre se repite en el mensaje |
+| `signal N has no name` | Una señal no trae nombre |
 | `ts is not a valid timestamp` | `ts` no es una fecha |
-| `quality is not good, uncertain or bad` | Falta `quality` o trae otro valor |
+| `signal NAME has no asset_limits row` | Esa señal no está en el catálogo del activo |
+| `signal NAME cannot be stored in the wide row` | El catálogo la tiene, y la tabla ancha todavía no |
+| `signals do not share one quality` | Las señales aceptadas traen calidades distintas; la fila ancha guarda una sola |
 | `asset_id is not in the asset registry` | El activo no está en `assets` |
 | `plant or area does not match the asset registry` | La planta o el área del tópico no son las de esa fila |
 
@@ -60,7 +67,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 ## Comprobación
 
-1. Un mensaje con `quality` fuera de la lista no aparece en `sensor_readings`.
+1. Un mensaje con la calidad de una señal fuera de la lista, o con una señal que no está en `asset_limits`, no guarda esa señal en `sensor_readings`.
 2. Ese mensaje aparece una vez en `rejected_messages`, con todas sus razones en `errors`, y también llega a `mosquitto_sub -t rejected` con `MQTT_USER`.
 3. Un `asset_id` que no está en `assets` hace lo mismo.
 4. Una lectura válida del motor no agrega fila en `rejected_messages`.

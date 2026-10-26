@@ -4,7 +4,7 @@
 
 El producto monitorea un motor mecánico crítico: temperatura de rodamientos y vibración, leídas por Modbus TCP. La presión, la bomba, el compresor y OPC UA quedan fuera. OPC UA sigue siendo un estándar OT de un cliente, no del producto.
 
-El código de este repositorio sigue siendo el laboratorio del que salió, sin OPC UA, la bomba y el compresor. El esclavo sigue publicando la presión. El esquema que se chequea ya es la lista de señales. La decisión, de dónde viene y las fases están en [docs/adr-scope.md](docs/adr-scope.md).
+El código de este repositorio sigue siendo el laboratorio del que salió, sin OPC UA, la bomba y el compresor. El esclavo publica temperatura de rodamientos y vibración. `sensor_readings` sigue ancha. La decisión, de dónde viene y las fases están en [docs/adr-scope.md](docs/adr-scope.md).
 
 ## De dónde viene
 
@@ -17,11 +17,11 @@ Las palabras `good`, `uncertain` y `bad` salen del modelo de estado de OPC UA de
 
 ## Fases
 
-Cada fase es un cambio de código posterior. Las fases 1 y 2 están hechas. La etapa 1 de la fase 3 está hecha. Las etapas 2, 3 y 4 no.
+Cada fase es un cambio de código posterior. Las fases 1 y 2 están hechas. Las etapas 1 y 2 de la fase 3 están hechas. Las etapas 3 y 4 no.
 
 1. Quitar OPC UA. Hecha: salieron la pestaña de ingesta, el paquete de Node-RED, `OPCUA_ENDPOINT` y la guía de Prosys. Modbus y el contrato ancho siguen.
 2. Dejar solo `critical-motor-01`. Hecha: salieron `mqtt-simulator`, la bomba y el compresor. El contrato ancho sigue durante esta fase.
-3. Guardar el perfil del motor en filas. Etapa 1 hecha: el contrato chequeado lleva `signals`, y el ejemplo del perfil publica `bearing_temperature` y `vibration`. El flujo sigue publicando el mensaje ancho. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
+3. Guardar el perfil del motor en filas. Etapas 1 y 2 hechas: el mensaje lleva `signals`, y el borde publica `bearing_temperature` y `vibration`. La tabla sigue ancha. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
 
 ## Arranque
 

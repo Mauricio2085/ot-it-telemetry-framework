@@ -37,7 +37,7 @@ La frontera aceptada es esta: OT e IT solo se encuentran en el broker. El tópic
 
 ISA-95 es la referencia de poner la jerarquía en el nombre. Por encima de planta iría la empresa. El registro y el tópico empiezan en planta.
 
-Sparkplug B es otro namespace, `spBv1.0/grupo/tipo/nodo/dispositivo`, con mensajes de nacimiento y de muerte. Este laboratorio publica el JSON del contrato v1. Sin un mensaje de muerte, un activo sin lecturas utilizables en el último minuto queda `stale` en `asset_condition`.
+Sparkplug B es otro namespace, `spBv1.0/grupo/tipo/nodo/dispositivo`, con mensajes de nacimiento y de muerte. Este laboratorio publica el JSON del contrato v2. Sin un mensaje de muerte, un activo sin lecturas utilizables en el último minuto queda `stale` en `asset_condition`.
 
 Estos límites siguen siendo de laboratorio:
 

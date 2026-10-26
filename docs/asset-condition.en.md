@@ -10,14 +10,14 @@ One row per asset and signal. An empty limit (`NULL`) means it does not apply.
 
 | Asset | Signal | Unit | Nominal | Alarm low | Warning low | Warning high | Alarm high | Reference |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `critical-motor-01` | temperature | °C | 55 | — | — | 80 | 90 | lab default |
+| `critical-motor-01` | bearing_temperature | °C | 55 | — | — | 80 | 90 | lab default |
 | `critical-motor-01` | vibration | mm/s | 0.8 | — | — | 2.8 | 4.5 | ISO 10816-3 |
 
 - `nominal` is the value of the signal on a healthy machine. It is the starting point of the margin used (see below).
-- `critical-motor-01` has no pressure row on purpose. A motor has no process pressure; the signal is stored but not evaluated. It has no low limits either.
+- `critical-motor-01` has no pressure row. A motor has no process pressure, and the slave no longer publishes it. It has no low limits either.
 - Vibration uses the ISO 10816-3 limits for medium machines on rigid foundations. The rest are lab values; in a plant they would come from the manufacturer's datasheet and the machine's own history.
 
-The database rejects a row when the signal is not `temperature`, `pressure`, or `vibration`, when it has no limit at all, when the limits are out of order (for example, a high warning above the high alarm), or when `nominal` falls outside the warning band.
+The database rejects a row when the signal is not `bearing_temperature`, `pressure`, or `vibration`, when it has no limit at all, when the limits are out of order (for example, a high warning above the high alarm), or when `nominal` falls outside the warning band. Bearing temperature is judged from the `bearing_temperature` row and read from the wide `temperature` column.
 
 ## View: `asset_condition`
 
@@ -87,8 +87,8 @@ Three ideas answer different questions:
 
 Every reading carries `quality`, with the three OPC UA levels: `good`, `uncertain`, or `bad`. The source decides it, the edge translates it, and IT validates it:
 
-- **Source.** The Modbus slave reports a status in HR3.
-- **Edge.** Node-RED maps the HR3 code to the contract vocabulary, and turns an unknown code into `bad`.
+- **Source.** The Modbus slave reports a status in HR2.
+- **Edge.** Node-RED maps the HR2 code to the contract vocabulary, copies it onto both signals, and turns an unknown code into `bad`.
 - **IT.** The ETL rejects a message whose quality is missing or outside the vocabulary, and `sensor_readings_quality_check` in `003_reading_quality.sql` does the same for direct inserts.
 
 The reference case has one `bad` episode:
@@ -97,7 +97,7 @@ The reference case has one `bad` episode:
 | --- | --- | --- | --- |
 | `critical-motor-01` | Minute 1:00–1:30 of its 13-minute cycle | `bad` | The vibration transmitter saturates at 25 mm/s. The readings are left out, so there is no false alarm |
 
-Quality is one value per message, so it covers the three signals at once: when one sensor fails, the source reports the worst quality and the other two signals carry it too. Per-signal quality is the accepted target in [adr-measurements.en.md](adr-measurements.en.md): one row per signal, with this wide table still in force.
+The message already carries a quality per signal. This slave has one status, so both leave with the same one. The wide table stores one quality per row: when the accepted signals disagree, the ETL rejects the message. One row per signal is stage 3 of [adr-scope.en.md](adr-scope.en.md).
 
 ## Query
 

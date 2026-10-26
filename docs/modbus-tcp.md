@@ -2,9 +2,9 @@
 
 [English](modbus-tcp.en.md)
 
-Este mapa es el del código actual, con la presión en HR1 y el estado en HR3. El mapa del producto —temperatura de rodamientos y vibración— es la fase 3 de [adr-scope.md](adr-scope.md).
+Este mapa es el del código actual: temperatura de rodamientos, vibración y el estado del equipo. La decisión está en [adr-scope.md](adr-scope.md).
 
-`modbus-slave` es la fuente OT de este laboratorio. Es un servidor Modbus TCP con cuatro holding registers para `critical-motor-01`: tres lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el JSON de telemetría.
+`modbus-slave` es la fuente OT de este laboratorio. Es un servidor Modbus TCP con tres holding registers para `critical-motor-01`: dos lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el JSON de telemetría.
 
 El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Modbus es solo el camino por el que sus lecturas llegan al edge.
 
@@ -12,15 +12,14 @@ El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Mo
 
 | Registro | Señal | Escalado | Ejemplo |
 | --- | --- | --- | --- |
-| HR0 | temperature | valor / 10 | `550` → `55.0` °C |
-| HR1 | pressure | valor / 100 | `100` → `1.00` bar |
-| HR2 | vibration | valor / 100 | `80` → `0.80` mm/s RMS |
-| HR3 | estado del equipo | `0` good, `1` uncertain, `2` bad | `0` → `good` |
+| HR0 | bearing_temperature | valor / 10 | `550` → `55.0` °C |
+| HR1 | vibration | valor / 100 | `80` → `0.80` mm/s RMS |
+| HR2 | estado del equipo | `0` good, `1` uncertain, `2` bad | `0` → `good` |
 
 - Unit id: `1`
 - Puerto en el contenedor: `502`
 - Puerto en el host: `1502` (`localhost:1502` desde la máquina)
-- Punto nominal: ~55 °C, ~1.0 bar, ~0.8 mm/s
+- Punto nominal: ~55 °C, ~0.8 mm/s
 - El ruido suave es un seno lento más un jitter pequeño
 
 ## Escenario de desbalance
@@ -30,18 +29,18 @@ El motor repite un ciclo de 13 minutos que simula un desbalance progresivo del r
 | Minutos | Fase en el log | Vibración |
 | --- | --- | --- |
 | 0–3 | `normal` | ~0.8 mm/s |
-| 1:00–1:30 | `sensor-fault` | el transmisor falla: HR2 se satura en 25.00 mm/s y HR3 vale `2` (bad) |
+| 1:00–1:30 | `sensor-fault` | el transmisor falla: HR1 se satura en 25.00 mm/s y HR2 vale `2` (bad) |
 | 3–10 | `unbalance-ramp` | sube en curva; cruza 2.8 cerca del minuto 7.8 y 4.5 cerca del 9.6 |
 | 10–13 | `alarm-hold` | ~5.0 mm/s sostenida |
 | 13 | mantenimiento | el rotor se balancea, vuelve a ~0.8 y el ciclo se repite |
 
-La rampa es cuadrática: empieza lenta y se acelera, como la curva P-F de una falla real. La temperatura sube como mucho 1.5 °C y la presión no cambia. Que solo se mueva la vibración apunta a una causa mecánica y no de proceso. Con solo la vibración global, el patrón es *compatible* con un desbalance; confirmarlo exigiría el espectro de vibración.
+La rampa es cuadrática: empieza lenta y se acelera, como la curva P-F de una falla real. La temperatura de rodamientos sube como mucho 1.5 °C. Que solo se mueva la vibración apunta a una causa mecánica. Con solo la vibración global, el patrón es *compatible* con un desbalance; confirmarlo exigiría el espectro de vibración.
 
 Umbrales de referencia, inspirados en ISO 10816-3 para máquinas medianas sobre base rígida: **warning en 2.8 mm/s** (límite de zonas B/C) y **alarm en 4.5 mm/s** (límite C/D). Los límites exactos dependen del tamaño y del montaje de cada máquina.
 
 ### Falla del sensor
 
-Durante la fase normal, el transmisor de vibración falla durante 30 segundos. Un lazo de 4–20 mA con el cable dañado lleva la lectura al tope del rango del sensor (NAMUR NE43 considera falla una corriente sobre 21 mA), así que HR2 marca 25.00 mm/s, cinco veces el límite de alarma. El equipo lo avisa poniendo HR3 en `2`. La temperatura y la presión siguen normales: falló el instrumento, no el motor.
+Durante la fase normal, el transmisor de vibración falla durante 30 segundos. Un lazo de 4–20 mA con el cable dañado lleva la lectura al tope del rango del sensor (NAMUR NE43 considera falla una corriente sobre 21 mA), así que HR1 marca 25.00 mm/s, cinco veces el límite de alarma. El equipo lo avisa poniendo HR2 en `2`. La temperatura de rodamientos sigue cerca de 55 °C: falló el instrumento, no el motor. El esclavo tiene un solo estado, así que las dos señales salen con `bad`.
 
 Las lecturas se guardan con `quality = bad`, pero `asset_condition` las deja fuera de los promedios, así que el motor sigue en `normal` en lugar de disparar una alarma falsa. El dashboard muestra un hueco en la tendencia de vibración y anota las lecturas descartadas en la tarjeta del motor. Ver [asset-condition.md](asset-condition.md#calidad-de-los-datos).
 
@@ -59,21 +58,21 @@ Tópico: `plant-01/area-01/critical-motor-01/telemetry` (QoS 1)
 {
   "asset_id": "critical-motor-01",
   "ts": "2026-10-16T15:00:00.000Z",
-  "temperature": 55.0,
-  "pressure": 1.0,
-  "vibration": 0.8,
-  "quality": "good"
+  "signals": [
+    { "name": "bearing_temperature", "value": 55.0, "quality": "good" },
+    { "name": "vibration", "value": 0.8, "quality": "good" }
+  ]
 }
 ```
 
 El `asset_id` del payload tiene que coincidir con el segmento de activo del tópico; si no, el ETL rechaza el mensaje.
 
-`quality` sale de HR3. El equipo la decide, y Node-RED traduce su código al vocabulario del contrato: `0` → `good`, `1` → `uncertain`, `2` → `bad`. Cualquier otro código se convierte en `bad`, porque el borde no puede garantizar una lectura cuyo estado no entiende.
+`quality` sale de HR2 y se copia en las dos señales. El equipo la decide, y Node-RED traduce su código al vocabulario del contrato: `0` → `good`, `1` → `uncertain`, `2` → `bad`. Cualquier otro código se convierte en `bad`, porque el borde no puede garantizar una lectura cuyo estado no entiende.
 
 ## Comprobación
 
 1. `docker compose up -d --build`
-2. Desde el host, un cliente Modbus TCP contra `localhost:1502`, unit `1`, lee los holding registers 0–3.
+2. Desde el host, un cliente Modbus TCP contra `localhost:1502`, unit `1`, lee los holding registers 0–2.
 3. En el editor de ingesta (`http://localhost:1881`), el tab **Modbus TCP Ingestion** está activo y el getter muestra actividad cada 5 segundos.
 4. Una lectura MQTT de `plant-01/area-01/critical-motor-01/telemetry` devuelve el JSON de arriba.
 5. Grafana **Asset Health** lista `critical-motor-01`.

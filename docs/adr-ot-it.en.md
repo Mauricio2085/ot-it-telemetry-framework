@@ -37,7 +37,7 @@ The accepted boundary is this one: OT and IT meet only at the broker. The accept
 
 ISA-95 is the reference for putting the hierarchy in the name. The enterprise would sit above the plant. The registry and the topic start at the plant.
 
-Sparkplug B is a different namespace, `spBv1.0/group/message_type/edge_node/device`, with birth and death messages. This lab publishes contract v1 JSON. With no death message, an asset with no usable readings in the last minute is `stale` in `asset_condition`.
+Sparkplug B is a different namespace, `spBv1.0/group/message_type/edge_node/device`, with birth and death messages. This lab publishes contract v2 JSON. With no death message, an asset with no usable readings in the last minute is `stale` in `asset_condition`.
 
 These limits stay lab limits:
 

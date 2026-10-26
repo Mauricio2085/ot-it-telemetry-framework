@@ -10,14 +10,14 @@ Una fila por activo y señal. Un límite vacío (`NULL`) significa que no aplica
 
 | Activo              | Señal       | Unidad | Nominal | Alarm bajo | Warning bajo | Warning alto | Alarm alto | Referencia  |
 | ------------------- | ----------- | ------ | ------- | ---------- | ------------ | ------------ | ---------- | ----------- |
-| `critical-motor-01` | temperature | °C     | 55      | —          | —            | 80           | 90         | lab default |
+| `critical-motor-01` | bearing_temperature | °C     | 55      | —          | —            | 80           | 90         | lab default |
 | `critical-motor-01` | vibration   | mm/s   | 0.8     | —          | —            | 2.8          | 4.5        | ISO 10816-3 |
 
 - `nominal` es el valor de la señal en una máquina sana. Es el punto de partida del margen consumido (ver más abajo).
-- `critical-motor-01` no tiene fila de presión a propósito. Un motor no tiene presión de proceso; la señal se guarda, pero no se evalúa. Tampoco tiene límites bajos.
+- `critical-motor-01` no tiene fila de presión. Un motor no tiene presión de proceso, y el esclavo ya no la publica. Tampoco tiene límites bajos.
 - La vibración usa los límites de ISO 10816-3 para máquinas medianas sobre base rígida. Los demás son valores de laboratorio; en planta saldrían de la hoja de datos del fabricante y del historial de la máquina.
 
-La base rechaza una fila si la señal no es `temperature`, `pressure` o `vibration`, si no tiene ningún límite, si los límites están desordenados (por ejemplo, un warning alto mayor que el alarm alto) o si `nominal` queda fuera de la banda de warning.
+La base rechaza una fila si la señal no es `bearing_temperature`, `pressure` o `vibration`, si no tiene ningún límite, si los límites están desordenados (por ejemplo, un warning alto mayor que el alarm alto) o si `nominal` queda fuera de la banda de warning. La temperatura de rodamientos se evalúa con la fila `bearing_temperature` y se lee de la columna ancha `temperature`.
 
 ## Vista: `asset_condition`
 
@@ -87,8 +87,8 @@ Tres ideas responden preguntas distintas:
 
 Cada lectura lleva `quality`, con los tres niveles de OPC UA: `good`, `uncertain` o `bad`. La fuente la decide, el borde la traduce y la TI la valida:
 
-- **Fuente.** El slave Modbus reporta un estado en HR3.
-- **Borde.** Node-RED traduce el código de HR3 al vocabulario del contrato y convierte un código desconocido en `bad`.
+- **Fuente.** El slave Modbus reporta un estado en HR2.
+- **Borde.** Node-RED traduce el código de HR2 al vocabulario del contrato, lo copia en las dos señales y convierte un código desconocido en `bad`.
 - **TI.** El ETL rechaza un mensaje sin calidad o con una calidad fuera del vocabulario, y `sensor_readings_quality_check`, en `003_reading_quality.sql`, hace lo mismo con las inserciones directas.
 
 El caso de referencia tiene un episodio `bad`:
@@ -97,7 +97,7 @@ El caso de referencia tiene un episodio `bad`:
 | ------------------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
 | `critical-motor-01` | Minuto 1:00–1:30 de su ciclo de 13 minutos | `bad`   | El transmisor de vibración se satura en 25 mm/s. Las lecturas quedan fuera, así que no hay falsa alarma |
 
-La calidad es un solo valor por mensaje, así que cubre las tres señales a la vez: cuando un sensor falla, la fuente informa la peor calidad y las otras dos señales también la llevan. La calidad por señal queda escrita como destino en [adr-measurements.md](adr-measurements.md): una fila por señal, y esta tabla ancha sigue vigente.
+El mensaje ya trae una calidad por señal. Este esclavo tiene un solo estado, así que las dos salen iguales. La tabla ancha guarda una calidad por fila: si las señales aceptadas no coinciden, el ETL rechaza el mensaje. La fila por señal queda para la etapa 3 de [adr-scope.md](adr-scope.md).
 
 ## Consultar
 
