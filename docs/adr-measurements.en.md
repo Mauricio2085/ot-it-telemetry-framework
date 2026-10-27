@@ -2,7 +2,7 @@
 
 [Español](adr-measurements.md)
 
-Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stages 1, 2, and 3 of phase 3 are done: `sensor_readings` stores one row per signal. This text is the lab decision.
+Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Phase 3 is done: `sensor_readings` stores one row per signal and the dashboard shows the profile's two trends. This text is the lab decision.
 
 ## Context
 
@@ -58,8 +58,8 @@ The flow publishes contract v2, in `contracts/telemetry-v2.schema.json`: `asset_
 
 ## Consequences
 
-- The demo, `sensor_readings_1m`, and `asset_condition` group by signal. The dashboard still has the pressure panel, empty, until stage 4.
+- The demo, `sensor_readings_1m`, `asset_condition`, and the dashboard group by signal. The dashboard shows the profile's two trends.
 - This slave has one status, so both signals leave with the same quality. The row stores that signal's quality.
-- A new signal arrives with its `asset_limits` row. The name is no longer closed by a `CHECK`. Its trend is a panel of the profile, in stage 4.
+- A new signal arrives with its `asset_limits` row. The name is no longer closed by a `CHECK`. It shows up in the condition and in the detail table. Its trend is a panel of the profile which brings it.
 - The table, aggregate, and condition migration is done. History backfill is not: a database created earlier is recreated with the volume.
 - v2 is the message the flow publishes. `sensor_readings` stores one row per signal.

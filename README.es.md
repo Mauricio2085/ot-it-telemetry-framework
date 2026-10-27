@@ -17,11 +17,11 @@ Las palabras `good`, `uncertain` y `bad` salen del modelo de estado de OPC UA de
 
 ## Fases
 
-Cada fase es un cambio de código posterior. Las fases 1 y 2 están hechas. Las etapas 1, 2 y 3 de la fase 3 están hechas. La etapa 4 no.
+Cada fase es un cambio de código posterior. Las fases 1, 2 y 3 están hechas.
 
 1. Quitar OPC UA. Hecha: salieron la pestaña de ingesta, el paquete de Node-RED, `OPCUA_ENDPOINT` y la guía de Prosys. Modbus y el contrato ancho siguen.
 2. Dejar solo `critical-motor-01`. Hecha: salieron `mqtt-simulator`, la bomba y el compresor. El contrato ancho sigue durante esta fase.
-3. Guardar el perfil del motor en filas. Etapas 1, 2 y 3 hechas: el mensaje lleva `signals` y `sensor_readings` guarda una fila por señal. El tablero es la etapa 4. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
+3. Guardar el perfil del motor en filas. Hecha: el mensaje lleva `signals`, `sensor_readings` guarda una fila por señal y el tablero muestra temperatura de rodamientos y vibración. El detalle está en [docs/adr-scope.md](docs/adr-scope.md).
 
 ## Arranque
 

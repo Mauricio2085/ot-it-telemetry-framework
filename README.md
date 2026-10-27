@@ -15,11 +15,11 @@ The quality words `good`, `uncertain`, and `bad` come from the OPC UA status mod
 
 ## Phases
 
-Each phase is a later code change. Phases 1 and 2 are done. Stages 1, 2, and 3 of phase 3 are done. Stage 4 is not.
+Each phase is a later code change. Phases 1, 2, and 3 are done.
 
 1. Remove OPC UA. Done: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide are gone. Modbus and the wide contract stay.
 2. Keep only `critical-motor-01`. Done: `mqtt-simulator`, the pump, and the compressor are gone. The wide contract stays through this phase.
-3. Store the motor profile as rows. Stages 1, 2, and 3 are done: the message carries `signals`, and `sensor_readings` stores one row per signal. The dashboard is stage 4. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
+3. Store the motor profile as rows. Done: the message carries `signals`, `sensor_readings` stores one row per signal, and the dashboard shows bearing temperature and vibration. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
 
 ## Current code
 
@@ -73,8 +73,8 @@ Chunks older than one day are compressed. Raw chunks older than seven days are d
 
 1. **Is the edge alive?** Readings stored in the last minute, rejections in the last 15 minutes, and the age of the newest reading. With the motor publishing every 5 seconds a healthy minute holds 11 or 12 readings. The rate turns amber below 10, a rejection count turns amber at 1, and the lag turns amber at 15 seconds.
 2. **What needs attention?** Counters of assets in alarm, in warning, and without data, then one tile per asset with its condition, the margin used, and the signal behind it ("87 % of margin used · vibration"). When readings are doubtful or discarded, the tile adds a note such as "6 bad readings discarded".
-3. **Why, and where is it heading?** One row per asset with vibration, bearing-temperature, and pressure trends. The pressure trend has no new points. Warning (amber) and alarm (red) limits are dashed lines read from `asset_limits`, so changing a limit in the database moves the line. Trends leave out `bad` readings and break the line when readings are missing for more than 15 seconds.
-4. **Detail.** A table of `asset_condition`: 1-minute averages, the state of each signal, data availability, data quality with the uncertain and discarded readings, and the time of the last reading.
+3. **Why, and where is it heading?** Vibration and bearing temperature, one panel each. Warning (amber) and alarm (red) limits are dashed lines read from `asset_limits`, so changing a limit in the database moves the line. Trends leave out `bad` readings and break the line when readings are missing for more than 15 seconds. A signal that is not part of this profile shows up in the condition and in the detail table; its trend is a panel added with that profile.
+4. **Detail.** A table of `asset_condition`, one row per signal: the 1-minute average, condition, margin used, data availability, data quality with the uncertain and discarded readings, and the time of the last reading.
 
 Colors follow ISA-101 for high-performance HMIs: `normal` is gray, and color is kept for abnormal states (amber warning, red alarm, purple no data or doubtful data). With every asset healthy the screen has no color at all.
 
@@ -164,7 +164,7 @@ Modbus values arrive as integers in holding registers and are scaled in Node-RED
 
 ### Accepted direction
 
-The running code still stores three fixed signals in columns, so condition, margin used, quality, and `stale` stay column-based until the measurement migration. The product keeps these decisions:
+The running code stores one row per signal, so condition, margin used, quality, and `stale` are per signal. The product keeps these decisions:
 
 - **Signals follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. The motor does not publish pressure.
 - **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That is what `sensor_readings` stores. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
@@ -172,4 +172,4 @@ The running code still stores three fixed signals in columns, so condition, marg
 - **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
 - **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.
 
-The code cut that applies this direction is phased in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA, the pump, and the compressor have left. Next the motor profile is stored as one row per signal.
+The code cut that applies this direction is in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA, the pump, and the compressor have left, and the motor profile is one row per signal.

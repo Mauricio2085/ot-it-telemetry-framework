@@ -4,7 +4,7 @@
 
 Status: accepted. 2026-10-25.
 
-Phase 1 and phase 2 are done. Stages 1, 2, and 3 of phase 3 are done. The dashboard is left.
+Phase 1, phase 2, and phase 3 are done.
 
 ## Where it comes from
 
@@ -33,7 +33,7 @@ Bearing-temperature limits, until a datasheet replaces them, are the ones the la
 
 ## Phases
 
-Phases 1 and 2 are done. Stages 1, 2, and 3 of phase 3 are done. Stage 4 is not. Each phase leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
+Phases 1, 2, and 3 are done. Each phase leaves the stack runnable and closes in its own commits. The framework row is asset, signal, value, quality, and time. Another asset is another profile: its type, its signals, its limits, and its field adapter. That does not migrate the table again.
 
 ### 1. Remove OPC UA
 
@@ -56,7 +56,7 @@ One phase, in four stages, so the two signals do not freeze as columns:
 1. **Contract.** Done. The schema is `contracts/telemetry-v2.schema.json`. The message carries `asset_id`, `ts`, and `signals`; each signal carries a name, a value, and a quality. The profile example publishes `bearing_temperature` and `vibration` with the same quality. Another example carries different qualities and passes. A name that is not part of this profile also passes: the schema does not close it. The wide message no longer passes the check. Check: `scripts/check-contracts.py` accepts the profile, the split qualities, and the open name, and rejects the wide message.
 2. **Edge.** Done. HR0 is bearing temperature × 10, HR1 is vibration × 100, and HR2 is the status (`0` good, `1` uncertain, `2` bad). The slave no longer publishes pressure. The ETL splits the signals and rejects one with no `asset_limits` row. In that stage the table was still wide, so the accepted signals folded into one row. Check: the topic carries both signals, and a signal outside `asset_limits` lands in `rejected_messages`.
 3. **Database.** Done. `sensor_readings` stores `time`, `asset_id`, `signal`, `value`, and `quality`. Plant and area stay on `assets`. `asset_limits` is the signal catalog: the `CHECK` no longer closes the signal names. Condition and the one-minute aggregate group by signal. "Readings / min" counts timestamps, not rows. A database created earlier is recreated with the volume. Check: one instant leaves two rows, a signal outside the catalog is not stored, and two different qualities at the same instant are stored.
-4. **Dashboard.** Two trends, bearing temperature and vibration, with limits read from `asset_limits`. The pressure panel is still on the dashboard, empty. The detail table already shows one row per signal. A new signal shows up in the condition and in that table without a schema change. Its trend is a panel that belongs to the profile which brings it.
+4. **Dashboard.** Done. Two trends, bearing temperature and vibration, with limits read from `asset_limits`. The pressure panel is gone. The detail table is one row per signal. A new signal shows up in the condition and in that table without a schema change. Its trend is a panel that belongs to the profile which brings it.
 
 The limits do not change: bearing temperature at 55 °C, 80 °C, and 90 °C; vibration at 2.8 mm/s and 4.5 mm/s. A database created earlier is recreated with the volume, because the continuous aggregate cannot be altered in place.
 
@@ -68,6 +68,6 @@ A pump, a conveyor, or OPC UA asked for by a client is a new profile. OPC UA arr
 
 ## Consequences
 
-- Anyone who starts the stack today sees the motor, without pressure. The pump, the compressor, and the OPC UA tab are gone. The published message is the signal list, and `sensor_readings` stores one row per signal. The dashboard still has the pressure panel, empty.
+- Anyone who starts the stack today sees the motor: bearing temperature and vibration, one row per signal, and those two trends. The pump, the compressor, the OPC UA tab, and the pressure panel are gone.
 - The Modbus, condition, registry, history, and rejection texts describe that code until the phase that replaces them.
 - The broker boundary, the topic, the registry, the one-minute condition, and the one-minute history stay. Phase 3 changes the shape of the row, not that boundary.

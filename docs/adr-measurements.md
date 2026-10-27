@@ -2,7 +2,7 @@
 
 [English](adr-measurements.en.md)
 
-Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). Las etapas 1, 2 y 3 de la fase 3 están hechas: `sensor_readings` guarda una fila por señal. Este texto es la decisión del laboratorio.
+Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). La fase 3 está hecha: `sensor_readings` guarda una fila por señal y el tablero muestra las dos tendencias del perfil. Este texto es la decisión del laboratorio.
 
 ## Contexto
 
@@ -58,8 +58,8 @@ El flujo publica el contrato v2, en `contracts/telemetry-v2.schema.json`: `asset
 
 ## Consecuencias
 
-- El demo, `sensor_readings_1m` y `asset_condition` agrupan por señal. El tablero todavía tiene el panel de presión, vacío, hasta la etapa 4.
+- El demo, `sensor_readings_1m`, `asset_condition` y el tablero agrupan por señal. El tablero muestra las dos tendencias del perfil.
 - Este esclavo tiene un solo estado, así que las dos señales salen con la misma calidad. La fila guarda la calidad de esa señal.
-- Una señal nueva entra con su fila en `asset_limits`. El nombre ya no está cerrado por un `CHECK`. Su tendencia es un panel del perfil, en la etapa 4.
+- Una señal nueva entra con su fila en `asset_limits`. El nombre ya no está cerrado por un `CHECK`. Aparece en la condición y en la tabla de detalle. Su tendencia es un panel del perfil que la traiga.
 - La migración de la tabla, del agregado y de la condición está hecha. El relleno del historial no: la base ya creada se recrea con el volumen.
 - v2 es el mensaje que publica el flujo. `sensor_readings` guarda una fila por señal.
