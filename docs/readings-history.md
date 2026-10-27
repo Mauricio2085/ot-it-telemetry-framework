@@ -2,20 +2,20 @@
 
 [English](readings-history.en.md)
 
-Timescale guarda dos capas. `sensor_readings` conserva cada punto de 5 segundos. `sensor_readings_1m` conserva un minuto de reloj por activo. La condición en vivo y el dashboard de 15 minutos siguen leyendo el crudo. El agregado es lo que queda cuando ese punto envejece.
+Timescale guarda dos capas. `sensor_readings` conserva cada punto de 5 segundos, una fila por señal. `sensor_readings_1m` conserva un minuto de reloj por activo y señal. La condición en vivo y el dashboard de 15 minutos siguen leyendo el crudo. El agregado es lo que queda cuando ese punto envejece.
 
 El script está en `timescaledb/init/005_readings_history.sql`. Usa condicionales de `psql`, así que se aplica con `psql -f`.
 
 ## Agregado: `sensor_readings_1m`
 
-Una fila por activo, planta, área y minuto de reloj. El minuto es el del reloj (16:14:00–16:15:00), no la ventana móvil de los últimos 60 segundos que usa `asset_condition`.
+Una fila por activo, señal y minuto de reloj. El minuto es el del reloj (16:14:00–16:15:00), no la ventana móvil de los últimos 60 segundos que usa `asset_condition`. Planta y área están en `assets`.
 
 | Columna | Contenido |
 | --- | --- |
 | `bucket` | Inicio del minuto |
-| `asset_id`, `plant`, `area` | Activo y la jerarquía que traía el tópico |
-| `temperature_avg`, `pressure_avg`, `vibration_avg` | Promedio de las lecturas con `quality` distinto de `bad` |
-| `samples` | Lecturas llegadas en ese minuto, incluidas las `bad` |
+| `asset_id`, `signal` | Activo y señal |
+| `value_avg` | Promedio de las lecturas de esa señal con `quality` distinto de `bad` |
+| `samples` | Lecturas de esa señal llegadas en ese minuto, incluidas las `bad` |
 | `uncertain` | Cuántas fueron `uncertain` |
 | `bad` | Cuántas fueron `bad` |
 
@@ -25,7 +25,7 @@ El agregado se refresca cada minuto, desde hace una hora hasta hace un minuto. E
 
 ## Compresión
 
-Los trozos de `sensor_readings` con más de un día se comprimen, agrupados por `asset_id` y ordenados por tiempo. El trozo que todavía recibe inserciones sigue en filas. Las consultas no cambian: Timescale lee el trozo comprimido y devuelve las mismas filas.
+Los trozos de `sensor_readings` con más de un día se comprimen, agrupados por `asset_id` y `signal`, y ordenados por tiempo. El trozo que todavía recibe inserciones sigue en filas. Las consultas no cambian: Timescale lee el trozo comprimido y devuelve las mismas filas.
 
 El job corre cada hora. Al aplicar el script, los trozos que ya cumplieron el día se comprimen en ese momento.
 
@@ -40,7 +40,7 @@ Volver a aplicar el script refresca solo el tramo que todavía tiene crudo. Un r
 ## Consultar
 
 ```bash
-docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT bucket, asset_id, vibration_avg, samples, uncertain, bad FROM sensor_readings_1m WHERE bucket > now() - make_interval(mins => 15) ORDER BY bucket DESC, asset_id;"'
+docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT bucket, asset_id, signal, value_avg, samples, uncertain, bad FROM sensor_readings_1m WHERE bucket > now() - make_interval(mins => 15) ORDER BY bucket DESC, asset_id, signal;"'
 ```
 
 ## Aplicar el script en una base existente

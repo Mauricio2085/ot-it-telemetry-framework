@@ -2,28 +2,28 @@
 
 This product monitors one critical mechanical motor: bearing temperature and vibration, read over Modbus TCP. Pressure, the pump, the compressor, and OPC UA are outside that scope. OPC UA stays a client's OT standard, not part of the product.
 
-The code in this repository is still the lab it was copied from, without OPC UA, the pump, and the compressor. The slave publishes bearing temperature and vibration. `sensor_readings` stays wide. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).
+The code in this repository is still the lab it was copied from, without OPC UA, the pump, and the compressor. The slave publishes bearing temperature and vibration, and each signal is one row. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).
 
 ## Where it comes from
 
 The tree starts from [iiot-asset-health-stack](https://github.com/Mauricio2085/iiot-asset-health-stack). Two lab decisions are adopted as written:
 
 - **OT and IT meet only at the broker**, on `plant/area/asset/telemetry`: [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), accepted 2026-10-24.
-- **Signals follow the failure mode**, and the target is one row per signal with its own quality. The table stays wide until that migration: [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), accepted 2026-10-22.
+- **Signals follow the failure mode**, and each signal is one row with its own quality: [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), accepted 2026-10-22.
 
 The quality words `good`, `uncertain`, and `bad` come from the OPC UA status model in that lab. The vocabulary stays. The protocol does not.
 
 ## Phases
 
-Each phase is a later code change. Phases 1 and 2 are done. Stages 1 and 2 of phase 3 are done. Stages 3 and 4 are not.
+Each phase is a later code change. Phases 1 and 2 are done. Stages 1, 2, and 3 of phase 3 are done. Stage 4 is not.
 
 1. Remove OPC UA. Done: the ingestion tab, the Node-RED package, `OPCUA_ENDPOINT`, and the Prosys guide are gone. Modbus and the wide contract stay.
 2. Keep only `critical-motor-01`. Done: `mqtt-simulator`, the pump, and the compressor are gone. The wide contract stays through this phase.
-3. Store the motor profile as rows. Stages 1 and 2 are done: the message carries `signals`, and the edge publishes `bearing_temperature` and `vibration`. The table stays wide. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
+3. Store the motor profile as rows. Stages 1, 2, and 3 are done: the message carries `signals`, and `sensor_readings` stores one row per signal. The dashboard is stage 4. The detail is in [docs/adr-scope.en.md](docs/adr-scope.en.md).
 
 ## Current code
 
-The sections below describe the code in the tree: one motor, the signal-list message, and the wide table.
+The sections below describe the code in the tree: one motor, the signal-list message, and one row per signal.
 
 End-to-end industrial telemetry pipeline for critical asset health monitoring. `critical-motor-01` publishes bearing temperature and vibration. The stack ingests those signals, checks the payload, stores them as a time series, and charts them.
 
@@ -63,7 +63,7 @@ During the motor scenario, `critical-motor-01` moves from `normal` to `warning` 
 
 ### History
 
-Timescale keeps two layers. `sensor_readings` holds every 5-second point. `sensor_readings_1m` holds one clock minute per asset: averages of the readings that are not `bad`, plus how many readings arrived and how many were `uncertain` or `bad`. The live condition and the 15-minute dashboard keep reading the raw table. The aggregate is the layer that remains after a raw point ages out.
+Timescale keeps two layers. `sensor_readings` holds every 5-second point, one row per signal. `sensor_readings_1m` holds one clock minute per asset and signal: the average of the readings that are not `bad`, plus how many readings arrived and how many were `uncertain` or `bad`. The live condition and the 15-minute dashboard keep reading the raw table. The aggregate is the layer that remains after a raw point ages out.
 
 Chunks older than one day are compressed. Raw chunks older than seven days are dropped; the minute rows stay. Policies, the refresh window, and the queries: [docs/readings-history.en.md](docs/readings-history.en.md).
 
@@ -144,7 +144,7 @@ Every reading publishes QoS 1 JSON to `plant-01/area-01/<asset_id>/telemetry`. C
 
 `quality` uses the OPC UA levels `good`, `uncertain`, and `bad`. The source decides it, the edge translates device codes into this vocabulary, and IT validates it. See [docs/asset-condition.en.md](docs/asset-condition.en.md#data-quality).
 
-The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Accepted signals still fold into the wide `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
+The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Each accepted signal is one `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
 
 On every push, GitHub Actions runs `scripts/check-contracts.py`: the v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource.
 
@@ -152,8 +152,8 @@ Modbus values arrive as integers in holding registers and are scaled in Node-RED
 
 ### Current limits
 
-- One motor in one plant and area. The message carries `bearing_temperature` and `vibration`. `asset_limits` evaluates both. The stored row is still wide.
-- The message carries one quality per signal. This slave has one device status, so both signals share it, and the wide row stores that one quality. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
+- One motor in one plant and area. The message carries `bearing_temperature` and `vibration`. `asset_limits` evaluates both. Each signal is stored on its own row.
+- The message carries one quality per signal. This slave has one device status, so both signals share it. A source that sets them apart is stored that way. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
 - A database outage is still only visible in the ETL editor's debug sidebar. Contract rejections are stored.
 - Nothing sends notifications: a warning or alarm is only visible on the dashboard.
 - Grafana 12.0.4 picks the Y-axis tick step on its own; there is no fixed step per panel.
@@ -166,8 +166,8 @@ Modbus values arrive as integers in holding registers and are scaled in Node-RED
 
 The running code still stores three fixed signals in columns, so condition, margin used, quality, and `stale` stay column-based until the measurement migration. The product keeps these decisions:
 
-- **Signals follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. The motor no longer publishes pressure. The wide row still has the pressure column.
-- **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That target is accepted in [docs/adr-measurements.en.md](docs/adr-measurements.en.md). The flow publishes contract v2. `sensor_readings` stays wide until stage 3.
+- **Signals follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. The motor does not publish pressure.
+- **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That is what `sensor_readings` stores. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
 - **Metadata stays in the asset registry.** Plant, area, type, and criticality live in `assets`. Units and limits stay on `asset_limits`. A template of limits per asset type is still ahead.
 - **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
 - **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.

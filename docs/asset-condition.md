@@ -17,32 +17,31 @@ Una fila por activo y señal. Un límite vacío (`NULL`) significa que no aplica
 - `critical-motor-01` no tiene fila de presión. Un motor no tiene presión de proceso, y el esclavo ya no la publica. Tampoco tiene límites bajos.
 - La vibración usa los límites de ISO 10816-3 para máquinas medianas sobre base rígida. Los demás son valores de laboratorio; en planta saldrían de la hoja de datos del fabricante y del historial de la máquina.
 
-La base rechaza una fila si la señal no es `bearing_temperature`, `pressure` o `vibration`, si no tiene ningún límite, si los límites están desordenados (por ejemplo, un warning alto mayor que el alarm alto) o si `nominal` queda fuera de la banda de warning. La temperatura de rodamientos se evalúa con la fila `bearing_temperature` y se lee de la columna ancha `temperature`.
+La base rechaza una fila si no tiene ningún límite, si los límites están desordenados (por ejemplo, un warning alto mayor que el alarm alto) o si `nominal` queda fuera de la banda de warning. El nombre de la señal ya no está cerrado: entra en el catálogo al insertar su fila.
 
 ## Vista: `asset_condition`
 
-Devuelve una fila por cada activo que tiene límites. Así un activo sin datos sigue apareciendo, en lugar de desaparecer.
+Devuelve una fila por cada señal que tiene límites. Así una señal sin datos sigue apareciendo, en lugar de desaparecer. La condición de esa fila es la de la señal.
 
 Reglas:
 
 1. Cada señal se evalúa con el **promedio del último minuto**, no con la última lectura, para que el ruido cerca de un umbral no haga saltar el estado (flapping).
 2. `alarm` si el promedio llega a un límite de alarma, alto o bajo; `warning` si llega a uno de warning; si no, `normal`. Los límites son inclusivos: llegar exactamente a 2.8 ya es `warning`.
-3. Una señal sin fila de límites no se evalúa y su estado queda vacío.
-4. `condition` es el peor estado entre las señales del activo.
-5. Si el activo no tiene lecturas utilizables en el último minuto, `condition` es `stale` y `last_seen` muestra cuándo llegó su último dato.
-6. Las lecturas con `quality = bad` se quedan en `sensor_readings`, pero no entran en los promedios ni en el margen consumido. Las `uncertain` se usan y se cuentan. Si todas las lecturas del último minuto son `bad`, no queda nada que evaluar y el activo es `stale`.
+3. Una señal sin fila de límites no entra en la vista: el ETL tampoco la guarda.
+4. `condition` es el estado de esa señal.
+5. Si la señal no tiene lecturas utilizables en el último minuto, `condition` es `stale` y `last_seen` muestra cuándo llegó su último dato.
+6. Las lecturas con `quality = bad` se quedan en `sensor_readings`, pero no entran en el promedio ni en el margen de esa señal. Las `uncertain` se usan y se cuentan. Si todas las lecturas del último minuto son `bad`, no queda nada que evaluar y la señal es `stale`.
 
 | Columna                                                  | Contenido                                                                       |
 | -------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | `asset_id`                                               | Activo                                                                          |
-| `condition`                                              | `normal`, `warning`, `alarm` o `stale`                                          |
-| `temperature_avg`, `pressure_avg`, `vibration_avg`       | Promedio del último minuto                                                      |
-| `temperature_state`, `pressure_state`, `vibration_state` | Estado de cada señal                                                            |
-| `samples_1m`                                             | Lecturas en el último minuto (11 o 12 con un envío cada 5 s, según el instante) |
+| `signal`                                                 | Señal, el mismo nombre que en `asset_limits`                                    |
+| `condition`                                              | `normal`, `warning`, `alarm` o `stale` de esa señal                             |
+| `value_avg`                                              | Promedio del último minuto de esa señal                                         |
+| `samples_1m`                                             | Muestras de esa señal en el último minuto (11 o 12 con un envío cada 5 s)      |
 | `last_seen`                                              | Hora de la última lectura, sin importar su antigüedad                           |
 | `evaluated_at`                                           | Momento del cálculo; la vista no guarda nada y recalcula en cada consulta       |
-| `worst_signal`                                           | Señal con mayor margen consumido                                                |
-| `limit_usage_pct`                                        | Margen consumido por `worst_signal`                                             |
+| `limit_usage_pct`                                        | Margen consumido por esa señal                                                  |
 | `data_availability_pct`                                  | Lecturas del último minuto frente a las 11 esperadas, con tope en 100 %         |
 | `uncertain_1m`                                           | Lecturas `uncertain` del último minuto                                          |
 | `bad_1m`                                                 | Lecturas `bad` que quedaron fuera en el último minuto                           |
@@ -97,12 +96,12 @@ El caso de referencia tiene un episodio `bad`:
 | ------------------- | ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
 | `critical-motor-01` | Minuto 1:00–1:30 de su ciclo de 13 minutos | `bad`   | El transmisor de vibración se satura en 25 mm/s. Las lecturas quedan fuera, así que no hay falsa alarma |
 
-El mensaje ya trae una calidad por señal. Este esclavo tiene un solo estado, así que las dos salen iguales. La tabla ancha guarda una calidad por fila: si las señales aceptadas no coinciden, el ETL rechaza el mensaje. La fila por señal queda para la etapa 3 de [adr-scope.md](adr-scope.md).
+Cada fila de `sensor_readings` guarda la calidad de esa señal. Este esclavo tiene un solo estado, así que las dos salen iguales. Una fuente que las distinga deja `bad` solo en la señal que falló.
 
 ## Consultar
 
 ```bash
-docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT asset_id, condition, worst_signal, limit_usage_pct, data_availability_pct, last_seen FROM asset_condition;"'
+docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT asset_id, signal, condition, value_avg, limit_usage_pct, data_availability_pct, last_seen FROM asset_condition;"'
 ```
 
 Las comillas simples hacen que `$POSTGRES_USER` y `$POSTGRES_DB` se lean dentro del contenedor, que ya los tiene definidos.

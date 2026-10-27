@@ -17,32 +17,31 @@ One row per asset and signal. An empty limit (`NULL`) means it does not apply.
 - `critical-motor-01` has no pressure row. A motor has no process pressure, and the slave no longer publishes it. It has no low limits either.
 - Vibration uses the ISO 10816-3 limits for medium machines on rigid foundations. The rest are lab values; in a plant they would come from the manufacturer's datasheet and the machine's own history.
 
-The database rejects a row when the signal is not `bearing_temperature`, `pressure`, or `vibration`, when it has no limit at all, when the limits are out of order (for example, a high warning above the high alarm), or when `nominal` falls outside the warning band. Bearing temperature is judged from the `bearing_temperature` row and read from the wide `temperature` column.
+The database rejects a row when it has no limit at all, when the limits are out of order (for example, a high warning above the high alarm), or when `nominal` falls outside the warning band. The signal name is no longer closed: it joins the catalog when its row is inserted.
 
 ## View: `asset_condition`
 
-Returns one row for every asset that has limits, so an asset with no data still shows up instead of disappearing.
+Returns one row for every signal that has limits, so a signal with no data still shows up instead of disappearing. That row's condition is the signal's condition.
 
 Rules:
 
 1. Each signal is judged on its **1-minute average**, not on the latest reading, so noise near a threshold does not make the state flap.
 2. `alarm` when the average reaches an alarm limit, high or low; `warning` when it reaches a warning limit; otherwise `normal`. Limits are inclusive: exactly 2.8 is already `warning`.
-3. A signal without a limits row is not evaluated and its state stays empty.
-4. `condition` is the worst state among the asset's signals.
-5. When the asset has no usable reading in the last minute, `condition` is `stale` and `last_seen` shows when its latest reading arrived.
-6. Readings with `quality = bad` stay in `sensor_readings` but are left out of the averages and the margin used. `uncertain` readings are used and counted. If every reading of the last minute is `bad`, nothing is left to judge and the asset is `stale`.
+3. A signal without a limits row does not appear in the view: the ETL does not store it either.
+4. `condition` is that signal's state.
+5. When the signal has no usable reading in the last minute, `condition` is `stale` and `last_seen` shows when its latest reading arrived.
+6. Readings with `quality = bad` stay in `sensor_readings` but are left out of that signal's average and margin. `uncertain` readings are used and counted. If every reading of the last minute is `bad`, nothing is left to judge and the signal is `stale`.
 
 | Column | Content |
 | --- | --- |
 | `asset_id` | Asset |
-| `condition` | `normal`, `warning`, `alarm`, or `stale` |
-| `temperature_avg`, `pressure_avg`, `vibration_avg` | 1-minute average |
-| `temperature_state`, `pressure_state`, `vibration_state` | State of each signal |
-| `samples_1m` | Readings in the last minute (11 or 12 at one every 5 s, depending on timing) |
+| `signal` | Signal, the same name as in `asset_limits` |
+| `condition` | `normal`, `warning`, `alarm`, or `stale` for that signal |
+| `value_avg` | 1-minute average of that signal |
+| `samples_1m` | Samples of that signal in the last minute (11 or 12 at one every 5 s) |
 | `last_seen` | Time of the latest reading, however old |
 | `evaluated_at` | When the row was computed; the view stores nothing and recomputes on every query |
-| `worst_signal` | Signal with the highest margin used |
-| `limit_usage_pct` | Margin used by `worst_signal` |
+| `limit_usage_pct` | Margin used by that signal |
 | `data_availability_pct` | Readings in the last minute against the 11 expected, capped at 100 % |
 | `uncertain_1m` | `uncertain` readings in the last minute |
 | `bad_1m` | `bad` readings left out in the last minute |
@@ -97,12 +96,12 @@ The reference case has one `bad` episode:
 | --- | --- | --- | --- |
 | `critical-motor-01` | Minute 1:00–1:30 of its 13-minute cycle | `bad` | The vibration transmitter saturates at 25 mm/s. The readings are left out, so there is no false alarm |
 
-The message already carries a quality per signal. This slave has one status, so both leave with the same one. The wide table stores one quality per row: when the accepted signals disagree, the ETL rejects the message. One row per signal is stage 3 of [adr-scope.en.md](adr-scope.en.md).
+Each `sensor_readings` row stores that signal's quality. This slave has one status, so both leave with the same one. A source that sets them apart leaves `bad` only on the signal that failed.
 
 ## Query
 
 ```bash
-docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT asset_id, condition, worst_signal, limit_usage_pct, data_availability_pct, last_seen FROM asset_condition;"'
+docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT asset_id, signal, condition, value_avg, limit_usage_pct, data_availability_pct, last_seen FROM asset_condition;"'
 ```
 
 The single quotes make `$POSTGRES_USER` and `$POSTGRES_DB` expand inside the container, which already defines them.

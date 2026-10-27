@@ -28,9 +28,9 @@ After the payload rules (topic, signals, `ts`, and `quality`), the ETL looks up 
 | The asset is not in the registry | `asset_id is not in the asset registry` |
 | The topic plant or area differs from the row | `plant or area does not match the asset registry` |
 
-When they match, the reading is stored with the plant and area from the topic. Those `sensor_readings` columns keep the same source: they are written only when the registry agrees.
+When they match, the reading is stored. Plant and area are not copied onto `sensor_readings`: they live in `assets`.
 
-The foreign key covers a direct insert of an unknown `asset_id`. A direct insert of a known asset can still store a different plant: that comparison lives in the ETL, not in the database.
+The foreign key covers a direct insert of an unknown `asset_id`. The plant and area comparison lives in the ETL, not in the database.
 
 ## Query
 

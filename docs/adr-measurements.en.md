@@ -2,7 +2,7 @@
 
 [Español](adr-measurements.md)
 
-Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stages 1 and 2 of phase 3 are done: the flow publishes contract v2 and the table stays wide. This text is the lab decision.
+Status: accepted. 2026-10-22. The product scope is in [adr-scope.en.md](adr-scope.en.md). Stages 1, 2, and 3 of phase 3 are done: `sensor_readings` stores one row per signal. This text is the lab decision.
 
 ## Context
 
@@ -54,12 +54,12 @@ That wide JSON is the lab's contract v1. It has no version field:
 }
 ```
 
-The flow publishes contract v2, in `contracts/telemetry-v2.schema.json`: `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. The wide message no longer passes that check. The table stays wide until stage 3.
+The flow publishes contract v2, in `contracts/telemetry-v2.schema.json`: `asset_id`, `ts`, and `signals`, each with a name, a value, and a quality. `sensor_readings` stores one row per signal.
 
 ## Consequences
 
-- The demo, `sensor_readings_1m`, `asset_condition`, and the Grafana trends keep reading the three columns.
-- A `bad` sensor still marks the other two signals of that reading.
-- A new signal still needs a schema change while the wide table is the store. On the target, the new measurement is a row. `asset_limits` still closes `signal` to `temperature`, `pressure`, and `vibration`, so a fourth name opens that `CHECK` and adds its limits row.
-- The migration —a new table, history backfill, the minute aggregate, and the panels— stays outside this text.
-- v2 is the message the flow publishes. The table stays wide.
+- The demo, `sensor_readings_1m`, and `asset_condition` group by signal. The dashboard still has the pressure panel, empty, until stage 4.
+- This slave has one status, so both signals leave with the same quality. The row stores that signal's quality.
+- A new signal arrives with its `asset_limits` row. The name is no longer closed by a `CHECK`. Its trend is a panel of the profile, in stage 4.
+- The table, aggregate, and condition migration is done. History backfill is not: a database created earlier is recreated with the volume.
+- v2 is the message the flow publishes. `sensor_readings` stores one row per signal.

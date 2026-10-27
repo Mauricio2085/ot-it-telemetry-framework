@@ -2,7 +2,7 @@
 
 [English](adr-measurements.en.md)
 
-Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). Las etapas 1 y 2 de la fase 3 están hechas: el flujo publica el contrato v2 y la tabla sigue ancha. Este texto es la decisión del laboratorio.
+Estado: aceptada. 2026-10-22. El alcance del producto está en [adr-scope.md](adr-scope.md). Las etapas 1, 2 y 3 de la fase 3 están hechas: `sensor_readings` guarda una fila por señal. Este texto es la decisión del laboratorio.
 
 ## Contexto
 
@@ -54,12 +54,12 @@ Ese JSON ancho es el contrato v1 del laboratorio. No lleva campo de versión:
 }
 ```
 
-El flujo publica el contrato v2, en `contracts/telemetry-v2.schema.json`: `asset_id`, `ts` y `signals`, cada una con nombre, valor y calidad. El mensaje ancho ya no pasa ese chequeo. La tabla sigue ancha hasta la etapa 3.
+El flujo publica el contrato v2, en `contracts/telemetry-v2.schema.json`: `asset_id`, `ts` y `signals`, cada una con nombre, valor y calidad. `sensor_readings` guarda una fila por señal.
 
 ## Consecuencias
 
-- El demo, `sensor_readings_1m`, `asset_condition` y las tendencias de Grafana siguen leyendo las tres columnas.
-- Un sensor `bad` sigue marcando las otras dos señales de esa lectura.
-- Una señal nueva sigue pidiendo un cambio de esquema mientras la tabla ancha sea el almacén. En el destino, la medición nueva es una fila. `asset_limits` todavía cierra `signal` a `temperature`, `pressure` y `vibration`, así que un cuarto nombre abre ese `CHECK` y agrega su fila de umbrales.
-- La migración —tabla nueva, relleno del historial, agregado de un minuto y paneles— queda fuera de este texto.
-- v2 es el mensaje que publica el flujo. La tabla sigue ancha.
+- El demo, `sensor_readings_1m` y `asset_condition` agrupan por señal. El tablero todavía tiene el panel de presión, vacío, hasta la etapa 4.
+- Este esclavo tiene un solo estado, así que las dos señales salen con la misma calidad. La fila guarda la calidad de esa señal.
+- Una señal nueva entra con su fila en `asset_limits`. El nombre ya no está cerrado por un `CHECK`. Su tendencia es un panel del perfil, en la etapa 4.
+- La migración de la tabla, del agregado y de la condición está hecha. El relleno del historial no: la base ya creada se recrea con el volumen.
+- v2 es el mensaje que publica el flujo. `sensor_readings` guarda una fila por señal.

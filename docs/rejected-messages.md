@@ -19,9 +19,7 @@ El script está en `timescaledb/init/006_rejected_messages.sql`.
 | `signal NAME is duplicated` | El nombre se repite en el mensaje |
 | `signal N has no name` | Una señal no trae nombre |
 | `ts is not a valid timestamp` | `ts` no es una fecha |
-| `signal NAME has no asset_limits row` | Esa señal no está en el catálogo del activo |
-| `signal NAME cannot be stored in the wide row` | El catálogo la tiene, y la tabla ancha todavía no |
-| `signals do not share one quality` | Las señales aceptadas traen calidades distintas; la fila ancha guarda una sola |
+| `signal NAME has no asset_limits row` | Esa señal no está en el catálogo del activo. Las demás señales del mensaje sí se guardan |
 | `asset_id is not in the asset registry` | El activo no está en `assets` |
 | `plant or area does not match the asset registry` | La planta o el área del tópico no son las de esa fila |
 

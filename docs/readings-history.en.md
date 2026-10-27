@@ -2,20 +2,20 @@
 
 [Español](readings-history.md)
 
-Timescale keeps two layers. `sensor_readings` holds every 5-second point. `sensor_readings_1m` holds one clock minute per asset. The live condition and the 15-minute dashboard keep reading the raw table. The aggregate is what remains after that point ages out.
+Timescale keeps two layers. `sensor_readings` holds every 5-second point, one row per signal. `sensor_readings_1m` holds one clock minute per asset and signal. The live condition and the 15-minute dashboard keep reading the raw table. The aggregate is what remains after that point ages out.
 
 The script is `timescaledb/init/005_readings_history.sql`. It uses `psql` conditionals, so it is applied with `psql -f`.
 
 ## Aggregate: `sensor_readings_1m`
 
-One row per asset, plant, area, and clock minute. The minute is the clock minute (16:14:00–16:15:00), not the rolling last 60 seconds that `asset_condition` uses.
+One row per asset, signal, and clock minute. The minute is the clock minute (16:14:00–16:15:00), not the rolling last 60 seconds that `asset_condition` uses. Plant and area live in `assets`.
 
 | Column | Contents |
 | --- | --- |
 | `bucket` | Start of the minute |
-| `asset_id`, `plant`, `area` | Asset and the hierarchy the topic carried |
-| `temperature_avg`, `pressure_avg`, `vibration_avg` | Average of readings whose `quality` is not `bad` |
-| `samples` | Readings that arrived in that minute, including `bad` ones |
+| `asset_id`, `signal` | Asset and signal |
+| `value_avg` | Average of that signal's readings whose `quality` is not `bad` |
+| `samples` | That signal's readings that arrived in that minute, including `bad` ones |
 | `uncertain` | How many were `uncertain` |
 | `bad` | How many were `bad` |
 
@@ -25,7 +25,7 @@ The aggregate refreshes every minute, from one hour ago to one minute ago. The m
 
 ## Compression
 
-`sensor_readings` chunks older than one day are compressed, segmented by `asset_id` and ordered by time. The chunk that is still taking inserts stays as rows. Queries stay the same: Timescale reads the compressed chunk and returns the same rows.
+`sensor_readings` chunks older than one day are compressed, segmented by `asset_id` and `signal`, and ordered by time. The chunk that is still taking inserts stays as rows. Queries stay the same: Timescale reads the compressed chunk and returns the same rows.
 
 The job runs every hour. When the script is applied, chunks that are already a day old are compressed then.
 
@@ -40,7 +40,7 @@ Applying the script again refreshes only the span that still has raw rows. A ref
 ## Query
 
 ```bash
-docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT bucket, asset_id, vibration_avg, samples, uncertain, bad FROM sensor_readings_1m WHERE bucket > now() - make_interval(mins => 15) ORDER BY bucket DESC, asset_id;"'
+docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT bucket, asset_id, signal, value_avg, samples, uncertain, bad FROM sensor_readings_1m WHERE bucket > now() - make_interval(mins => 15) ORDER BY bucket DESC, asset_id, signal;"'
 ```
 
 ## Applying the script to an existing database

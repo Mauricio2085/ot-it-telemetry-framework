@@ -28,9 +28,9 @@ Después de las reglas del payload (tópico, señales, `ts` y `quality`), el ETL
 | El activo no está en el registro | `asset_id is not in the asset registry` |
 | La planta o el área del tópico no son las de la fila | `plant or area does not match the asset registry` |
 
-Si coinciden, la lectura se guarda con la planta y el área del tópico. Esas columnas de `sensor_readings` no cambian de origen: solo se escriben cuando el registro está de acuerdo.
+Si coinciden, la lectura se guarda. La planta y el área no se copian a `sensor_readings`: viven en `assets`.
 
-La clave foránea cubre las inserciones directas de un `asset_id` desconocido. Una inserción directa de un activo conocido puede guardar otra planta: esa comparación vive en el ETL, no en la base.
+La clave foránea cubre las inserciones directas de un `asset_id` desconocido. La comparación de planta y área vive en el ETL, no en la base.
 
 ## Consultar
 
