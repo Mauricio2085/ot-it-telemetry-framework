@@ -43,9 +43,9 @@ preflight() {
     echo "ok   Grafana dashboard mounted"
 
     local assets motor low
-    assets=$(psql_value "SELECT count(*) FROM asset_condition")
-    [[ "$assets" == "1" ]] || fail "asset_condition has $assets rows, expected 1"
-    motor=$(psql_value "SELECT asset_id FROM asset_condition")
+    assets=$(psql_value "SELECT count(DISTINCT asset_id) FROM asset_condition")
+    [[ "$assets" == "1" ]] || fail "asset_condition has $assets assets, expected 1"
+    motor=$(psql_value "SELECT DISTINCT asset_id FROM asset_condition")
     [[ "$motor" == "critical-motor-01" ]] || fail "asset_condition row is $motor, expected critical-motor-01"
     low=$(psql_value "SELECT string_agg(asset_id, ', ') FROM asset_condition WHERE data_availability_pct < 100")
     [[ -z "$low" ]] || fail "data availability below 100 % for: $low"

@@ -1,9 +1,9 @@
 -- Safe to run more than once: init applies it to new databases, and existing
 -- databases get it by hand with psql.
 --
--- The asset registry is the hierarchy. Plant and area on a reading are still
--- taken from the MQTT topic, and the ETL rejects the message when they
--- disagree with this table.
+-- The asset registry is the hierarchy. Plant and area live here. The ETL
+-- still reads them from the MQTT topic and rejects the message when they
+-- disagree with this table. A reading does not store them again.
 
 CREATE TABLE IF NOT EXISTS assets (
     asset_id    TEXT NOT NULL PRIMARY KEY,

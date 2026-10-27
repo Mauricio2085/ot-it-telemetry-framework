@@ -11,8 +11,6 @@ CREATE TABLE IF NOT EXISTS asset_limits (
     alarm_high   DOUBLE PRECISION,
     reference    TEXT             NOT NULL DEFAULT 'unknown',
     PRIMARY KEY (asset_id, signal),
-    CONSTRAINT asset_limits_signal_check
-        CHECK (signal IN ('bearing_temperature', 'pressure', 'vibration')),
     CONSTRAINT asset_limits_has_limit_check
         CHECK (num_nonnulls(alarm_low, warning_low, warning_high, alarm_high) > 0),
     CONSTRAINT asset_limits_low_order_check
@@ -39,27 +37,11 @@ BEGIN
 END
 $$;
 
--- An existing database still has the closed list and the old signal name.
--- CREATE TABLE IF NOT EXISTS does not replace that check.
-DO $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'asset_limits_signal_check'
-          AND pg_get_constraintdef(oid) NOT LIKE '%bearing_temperature%'
-    ) THEN
-        ALTER TABLE asset_limits DROP CONSTRAINT asset_limits_signal_check;
-        UPDATE asset_limits
-            SET signal = 'bearing_temperature'
-            WHERE signal = 'temperature';
-        ALTER TABLE asset_limits ADD CONSTRAINT asset_limits_signal_check
-            CHECK (signal IN ('bearing_temperature', 'pressure', 'vibration'));
-    END IF;
-END
-$$;
+-- The catalog no longer closes signal names. A name is valid when it has a row.
+ALTER TABLE asset_limits DROP CONSTRAINT IF EXISTS asset_limits_signal_check;
 
 -- critical-motor-01 has no pressure row on purpose: a motor has no process
--- pressure. The wide temperature column still holds bearing_temperature.
+-- pressure.
 INSERT INTO asset_limits
     (asset_id, signal, unit, nominal, alarm_low, warning_low, warning_high, alarm_high, reference)
 VALUES
@@ -74,105 +56,79 @@ ON CONFLICT (asset_id, signal) DO UPDATE SET
     alarm_high   = EXCLUDED.alarm_high,
     reference    = EXCLUDED.reference;
 
--- One row per asset that has limits. Each signal is judged on its 1-minute
--- average; the asset condition is the worst signal state, or 'stale' when no
--- usable reading arrived in that minute. Limits are inclusive.
--- Readings with quality 'bad' are kept in sensor_readings but left out of the
--- averages; 'uncertain' ones are used and counted.
+-- One row per asset and signal that has limits. Each signal is judged on its
+-- 1-minute average, or 'stale' when no usable reading arrived in that minute.
+-- Limits are inclusive. Readings with quality 'bad' stay in sensor_readings
+-- but are left out of the averages; 'uncertain' ones are used and counted.
 -- Limit usage is the share of the margin between nominal and the alarm limit
 -- that the average has consumed: 0 % at nominal, 100 % or more in alarm.
--- CREATE OR REPLACE VIEW can only append columns: renaming or reordering
--- existing ones needs DROP VIEW first.
-CREATE OR REPLACE VIEW asset_condition AS
-WITH expected AS (
-    SELECT DISTINCT asset_id
-    FROM asset_limits
-),
-recent AS (
+-- A new signal is a new row. The column list changed, so replace the view.
+DROP VIEW IF EXISTS asset_condition;
+CREATE VIEW asset_condition AS
+WITH recent AS (
     SELECT asset_id,
-           count(*)                                       AS samples_1m,
-           count(*) FILTER (WHERE quality = 'uncertain')  AS uncertain_1m,
-           count(*) FILTER (WHERE quality = 'bad')        AS bad_1m,
+           signal,
+           count(*)                                      AS samples_1m,
+           count(*) FILTER (WHERE quality = 'uncertain') AS uncertain_1m,
+           count(*) FILTER (WHERE quality = 'bad')       AS bad_1m,
            CASE
                WHEN bool_or(quality = 'bad')       THEN 'bad'
                WHEN bool_or(quality = 'uncertain') THEN 'uncertain'
                ELSE 'good'
-           END                                            AS data_quality,
-           avg(temperature) FILTER (WHERE quality <> 'bad') AS temperature,
-           avg(pressure)    FILTER (WHERE quality <> 'bad') AS pressure,
-           avg(vibration)   FILTER (WHERE quality <> 'bad') AS vibration
+           END                                           AS data_quality,
+           avg(value) FILTER (WHERE quality <> 'bad')    AS value_avg
     FROM sensor_readings
     WHERE time > now() - INTERVAL '1 minute'
-    GROUP BY asset_id
+    GROUP BY asset_id, signal
 ),
-evaluated AS (
-    SELECT r.asset_id,
-           v.signal,
+judged AS (
+    SELECT l.asset_id,
+           l.signal,
+           r.value_avg,
+           COALESCE(r.samples_1m, 0)    AS samples_1m,
+           COALESCE(r.uncertain_1m, 0)  AS uncertain_1m,
+           COALESCE(r.bad_1m, 0)        AS bad_1m,
+           r.data_quality,
            CASE
-               WHEN v.value >= l.alarm_high   OR v.value <= l.alarm_low   THEN 'alarm'
-               WHEN v.value >= l.warning_high OR v.value <= l.warning_low THEN 'warning'
-               WHEN v.value IS NOT NULL                                   THEN 'normal'
+               WHEN r.value_avg >= l.alarm_high   OR r.value_avg <= l.alarm_low   THEN 'alarm'
+               WHEN r.value_avg >= l.warning_high OR r.value_avg <= l.warning_low THEN 'warning'
+               WHEN r.value_avg IS NOT NULL                                       THEN 'normal'
            END AS state,
-           CASE WHEN l.nominal IS NOT NULL AND v.value IS NOT NULL THEN
+           CASE WHEN l.nominal IS NOT NULL AND r.value_avg IS NOT NULL THEN
                GREATEST(
                    0,
-                   (v.value - l.nominal) / NULLIF(l.alarm_high - l.nominal, 0),
-                   (l.nominal - v.value) / NULLIF(l.nominal - l.alarm_low, 0)
+                   (r.value_avg - l.nominal) / NULLIF(l.alarm_high - l.nominal, 0),
+                   (l.nominal - r.value_avg) / NULLIF(l.nominal - l.alarm_low, 0)
                )
            END AS usage
-    FROM recent r
-    CROSS JOIN LATERAL (VALUES
-        ('bearing_temperature', r.temperature),
-        ('pressure',    r.pressure),
-        ('vibration',   r.vibration)
-    ) AS v (signal, value)
-    JOIN asset_limits l
-        ON l.asset_id = r.asset_id AND l.signal = v.signal
-),
-per_asset AS (
-    SELECT asset_id,
-           max(CASE state WHEN 'alarm' THEN 2 WHEN 'warning' THEN 1 WHEN 'normal' THEN 0 END) AS worst,
-           max(state) FILTER (WHERE signal = 'bearing_temperature') AS temperature_state,
-           max(state) FILTER (WHERE signal = 'pressure')    AS pressure_state,
-           max(state) FILTER (WHERE signal = 'vibration')   AS vibration_state,
-           (array_agg(signal ORDER BY usage DESC NULLS LAST))[1] AS worst_signal,
-           max(usage) AS usage
-    FROM evaluated
-    GROUP BY asset_id
+    FROM asset_limits l
+    LEFT JOIN recent r
+        ON r.asset_id = l.asset_id AND r.signal = l.signal
 )
-SELECT e.asset_id,
-       CASE p.worst
-           WHEN 2 THEN 'alarm'
-           WHEN 1 THEN 'warning'
-           WHEN 0 THEN 'normal'
+SELECT j.asset_id,
+       j.signal,
+       CASE j.state
+           WHEN 'alarm'   THEN 'alarm'
+           WHEN 'warning' THEN 'warning'
+           WHEN 'normal'  THEN 'normal'
            ELSE 'stale'
-       END                              AS condition,
-       round(r.temperature::numeric, 2) AS temperature_avg,
-       p.temperature_state,
-       round(r.pressure::numeric, 2)    AS pressure_avg,
-       p.pressure_state,
-       round(r.vibration::numeric, 2)   AS vibration_avg,
-       p.vibration_state,
-       COALESCE(r.samples_1m, 0)        AS samples_1m,
-       last_reading.time                AS last_seen,
-       now()                            AS evaluated_at,
-       p.worst_signal,
-       round((p.usage * 100)::numeric, 1) AS limit_usage_pct,
-       -- Sources publish every 5 s, so a 1-minute window catches 11 or 12
-       -- readings depending on timing; 11 already counts as full availability.
-       round(LEAST(COALESCE(r.samples_1m, 0) * 100.0 / 11, 100), 0) AS data_availability_pct,
-       COALESCE(r.uncertain_1m, 0)      AS uncertain_1m,
-       COALESCE(r.bad_1m, 0)            AS bad_1m,
-       r.data_quality
-FROM expected e
-LEFT JOIN recent r
-    ON r.asset_id = e.asset_id
-LEFT JOIN per_asset p
-    ON p.asset_id = e.asset_id
+       END AS condition,
+       round(j.value_avg::numeric, 2) AS value_avg,
+       j.samples_1m,
+       last_reading.time AS last_seen,
+       now() AS evaluated_at,
+       round((j.usage * 100)::numeric, 1) AS limit_usage_pct,
+       -- Each signal is published every 5 s, so a 1-minute window catches
+       -- 11 or 12 samples; 11 already counts as full availability.
+       round(LEAST(j.samples_1m * 100.0 / 11, 100), 0) AS data_availability_pct,
+       j.uncertain_1m,
+       j.bad_1m,
+       j.data_quality
+FROM judged j
 LEFT JOIN LATERAL (
     SELECT s.time
     FROM sensor_readings s
-    WHERE s.asset_id = e.asset_id
+    WHERE s.asset_id = j.asset_id AND s.signal = j.signal
     ORDER BY s.time DESC
     LIMIT 1
 ) AS last_reading ON TRUE;

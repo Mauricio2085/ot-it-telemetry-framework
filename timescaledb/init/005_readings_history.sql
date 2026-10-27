@@ -2,9 +2,9 @@
 -- Safe to run more than once with psql -f. The \if commands are psql syntax,
 -- so this file is not meant to be pasted into a query window.
 --
--- The 1-minute aggregate keeps a clock minute per asset after the raw point
--- is gone. Refresh only the span that still has raw rows: refreshing a window
--- whose raw chunks were already dropped would erase those minutes.
+-- The 1-minute aggregate keeps a clock minute per asset and signal after the
+-- raw point is gone. Refresh only the span that still has raw rows: refreshing
+-- a window whose raw chunks were already dropped would erase those minutes.
 -- asset_condition and the live dashboard keep reading sensor_readings.
 
 SELECT EXISTS (
@@ -21,16 +21,13 @@ WITH (timescaledb.continuous, timescaledb.materialized_only = true) AS
 SELECT
     time_bucket('1 minute', time) AS bucket,
     asset_id,
-    plant,
-    area,
-    avg(temperature) FILTER (WHERE quality <> 'bad') AS temperature_avg,
-    avg(pressure)    FILTER (WHERE quality <> 'bad') AS pressure_avg,
-    avg(vibration)   FILTER (WHERE quality <> 'bad') AS vibration_avg,
+    signal,
+    avg(value) FILTER (WHERE quality <> 'bad') AS value_avg,
     count(*)                                     AS samples,
     count(*) FILTER (WHERE quality = 'uncertain') AS uncertain,
     count(*) FILTER (WHERE quality = 'bad')       AS bad
 FROM sensor_readings
-GROUP BY time_bucket('1 minute', time), asset_id, plant, area
+GROUP BY time_bucket('1 minute', time), asset_id, signal
 WITH NO DATA;
 \endif
 
@@ -55,7 +52,7 @@ BEGIN
     ) THEN
         ALTER TABLE sensor_readings SET (
             timescaledb.compress,
-            timescaledb.compress_segmentby = 'asset_id',
+            timescaledb.compress_segmentby = 'asset_id, signal',
             timescaledb.compress_orderby = 'time DESC'
         );
     END IF;
