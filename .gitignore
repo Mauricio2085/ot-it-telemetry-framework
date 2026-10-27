@@ -4,6 +4,7 @@
 **/.sessions.json
 **/.config.*.json
 **/node_modules/
+**/__pycache__/
 mosquitto/config/passwd
 **/.npm/
 **/*.backup
