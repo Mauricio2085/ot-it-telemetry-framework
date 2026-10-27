@@ -526,7 +526,7 @@
       "title": "Vibration",
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 12,
         "x": 0,
         "y": 15
       },
@@ -668,11 +668,11 @@
     {
       "id": 22,
       "type": "timeseries",
-      "title": "Temperature",
+      "title": "Bearing temperature",
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
+        "w": 12,
+        "x": 12,
         "y": 15
       },
       "interval": "5s",
@@ -795,7 +795,7 @@
           "format": "time_series",
           "editorMode": "code",
           "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(time, $__interval), avg(value) AS temperature\nFROM sensor_readings\nWHERE $__timeFilter(time) AND asset_id IN ($asset) AND signal = 'bearing_temperature' AND quality <> 'bad'\nGROUP BY 1\nORDER BY 1"
+          "rawSql": "SELECT $__timeGroupAlias(time, $__interval), avg(value) AS \"bearing temperature\"\nFROM sensor_readings\nWHERE $__timeFilter(time) AND asset_id IN ($asset) AND signal = 'bearing_temperature' AND quality <> 'bad'\nGROUP BY 1\nORDER BY 1"
         },
         {
           "refId": "B",
@@ -807,151 +807,6 @@
           "editorMode": "code",
           "rawQuery": true,
           "rawSql": "SELECT t.time, x.name AS metric, x.value\nFROM asset_limits l\nCROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t (time)\nCROSS JOIN LATERAL (VALUES\n    ('alarm high', l.alarm_high),\n    ('warning high', l.warning_high),\n    ('warning low', l.warning_low),\n    ('alarm low', l.alarm_low)\n) AS x (name, value)\nWHERE l.asset_id IN ($asset) AND l.signal = 'bearing_temperature' AND x.value IS NOT NULL\nORDER BY 1"
-        }
-      ]
-    },
-    {
-      "id": 23,
-      "type": "timeseries",
-      "title": "Pressure",
-      "gridPos": {
-        "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 15
-      },
-      "interval": "5s",
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "timescaledb"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "suffix: bar",
-          "decimals": 2,
-          "min": 0,
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "#C7D0D9"
-          },
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "showPoints": "never",
-            "spanNulls": false,
-            "insertNulls": 15000
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "warning.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#F5A623"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 2
-              },
-              {
-                "id": "custom.spanNulls",
-                "value": true
-              },
-              {
-                "id": "custom.insertNulls",
-                "value": false
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byRegexp",
-              "options": "alarm.*"
-            },
-            "properties": [
-              {
-                "id": "color",
-                "value": {
-                  "mode": "fixed",
-                  "fixedColor": "#E02F44"
-                }
-              },
-              {
-                "id": "custom.lineStyle",
-                "value": {
-                  "fill": "dash",
-                  "dash": [
-                    10,
-                    10
-                  ]
-                }
-              },
-              {
-                "id": "custom.lineWidth",
-                "value": 2
-              },
-              {
-                "id": "custom.spanNulls",
-                "value": true
-              },
-              {
-                "id": "custom.insertNulls",
-                "value": false
-              }
-            ]
-          }
-        ]
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "timescaledb"
-          },
-          "format": "time_series",
-          "editorMode": "code",
-          "rawQuery": true,
-          "rawSql": "SELECT $__timeGroupAlias(time, $__interval), avg(value) AS pressure\nFROM sensor_readings\nWHERE $__timeFilter(time) AND asset_id IN ($asset) AND signal = 'pressure' AND quality <> 'bad'\nGROUP BY 1\nORDER BY 1"
-        },
-        {
-          "refId": "B",
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "timescaledb"
-          },
-          "format": "time_series",
-          "editorMode": "code",
-          "rawQuery": true,
-          "rawSql": "SELECT t.time, x.name AS metric, x.value\nFROM asset_limits l\nCROSS JOIN (VALUES ($__timeFrom()::timestamptz), ($__timeTo()::timestamptz)) AS t (time)\nCROSS JOIN LATERAL (VALUES\n    ('alarm high', l.alarm_high),\n    ('warning high', l.warning_high),\n    ('warning low', l.warning_low),\n    ('alarm low', l.alarm_low)\n) AS x (name, value)\nWHERE l.asset_id IN ($asset) AND l.signal = 'pressure' AND x.value IS NOT NULL\nORDER BY 1"
         }
       ]
     },
