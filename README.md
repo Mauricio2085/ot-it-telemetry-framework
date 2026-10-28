@@ -146,13 +146,13 @@ Every reading publishes QoS 1 JSON to `plant-01/area-01/<asset_id>/telemetry`. C
 
 The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Each accepted signal is one `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
 
-On every push, GitHub Actions runs `scripts/check-contracts.py`: the v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource.
+On every push, GitHub Actions runs `scripts/check-contracts.py` and `scripts/check-profile.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/` and scales a known register triple.
 
-Modbus values arrive as integers in holding registers and are scaled in Node-RED (`HR0 / 10`, `HR1 / 100`); HR2 carries the device status that becomes `quality` on both signals. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md).
+Modbus values arrive as integers in holding registers. The profile in [`profiles/`](profiles/) names the asset, the registers, the scale, and the quality codes. The motor profile multiplies HR0 by 0.1 and HR1 by 0.01; HR2 is the device status copied onto both signals. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md).
 
 ### Current limits
 
-- One motor in one plant and area. The message carries `bearing_temperature` and `vibration`. `asset_limits` evaluates both. Each signal is stored on its own row.
+- One motor in one plant and area. Its field map is `profiles/critical-motor-01.json`: `bearing_temperature` and `vibration`. Another asset on the same Modbus host is another file in `profiles/`. `asset_limits` still evaluates the signals, and each one is stored on its own row. The file does not insert the registry or the limits.
 - The message carries one quality per signal. This slave has one device status, so both signals share it. A source that sets them apart is stored that way. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
 - A database outage is still only visible in the ETL editor's debug sidebar. Contract rejections are stored.
 - Nothing sends notifications: a warning or alarm is only visible on the dashboard.

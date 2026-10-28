@@ -4,7 +4,7 @@
 
 This map is the one in the code today: bearing temperature, vibration, and the device status. The decision is in [adr-scope.en.md](adr-scope.en.md).
 
-`modbus-slave` is the OT source in this lab. It is a Modbus TCP server that exposes three holding registers for `critical-motor-01`: two readings and a device status. `node-red-ingestion` polls them every 5 seconds, scales the readings, translates the status into the contract quality, and publishes the telemetry JSON.
+`modbus-slave` is the OT source in this lab. It is a Modbus TCP server that exposes three holding registers for `critical-motor-01`: two readings and a device status. The map itself is [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json). `node-red-ingestion` reads every `*.json` file in `profiles/`, polls that file's registers, scales each signal, translates the quality register into the contract vocabulary, and publishes the telemetry JSON. Another asset on this same Modbus host is another file. Restart `node-red-ingestion` after adding or editing one. A signal still needs a row in `asset_limits`, and the asset still needs a row in `assets`: the file does not write those.
 
 The asset is a motor, not a "Modbus pump". The `asset_id` names the equipment; Modbus is only how its readings reach the edge.
 
@@ -67,13 +67,13 @@ Topic: `plant-01/area-01/critical-motor-01/telemetry` (QoS 1)
 
 The `asset_id` in the payload must match the asset segment of the topic, or the ETL rejects the message.
 
-`quality` comes from HR2 and is copied onto both signals. The device decides it, and Node-RED translates the device code into the contract vocabulary: `0` → `good`, `1` → `uncertain`, `2` → `bad`. Any other code becomes `bad`, because the edge cannot vouch for a reading whose status it does not understand.
+`quality` comes from the profile's quality register. For this motor that register is HR2, and the same quality is copied onto both signals. The device decides it, and Node-RED translates the device code with the profile's `codes`: `0` → `good`, `1` → `uncertain`, `2` → `bad`. A code that is not in `codes` becomes `unknown` (`bad` here), because the edge cannot vouch for a reading whose status it does not understand.
 
 ## Check
 
 1. `docker compose up -d --build`
 2. From the host, a Modbus TCP client against `localhost:1502`, unit `1`, can read holding registers 0–2.
-3. In the ingestion editor (`http://localhost:1881`), the **Modbus TCP Ingestion** tab is enabled and the getter shows activity every 5 seconds.
+3. In the ingestion editor (`http://localhost:1881`), the **Modbus TCP Ingestion** tab is enabled and **Read holding registers** shows activity every 5 seconds.
 4. An MQTT read of `plant-01/area-01/critical-motor-01/telemetry` returns the JSON above.
 5. Grafana **Asset Health** lists `critical-motor-01`.
 6. One minute after `docker compose restart modbus-slave`, six motor readings arrive with `vibration = 25` and `quality = bad`, and the motor tile stays `NORMAL` with "6 bad readings discarded".

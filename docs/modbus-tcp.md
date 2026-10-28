@@ -4,7 +4,7 @@
 
 Este mapa es el del código actual: temperatura de rodamientos, vibración y el estado del equipo. La decisión está en [adr-scope.md](adr-scope.md).
 
-`modbus-slave` es la fuente OT de este laboratorio. Es un servidor Modbus TCP con tres holding registers para `critical-motor-01`: dos lecturas y un estado del equipo. `node-red-ingestion` los lee cada 5 segundos, escala las lecturas, traduce el estado a la calidad del contrato y publica el JSON de telemetría.
+`modbus-slave` es la fuente OT de este laboratorio. Es un servidor Modbus TCP con tres holding registers para `critical-motor-01`: dos lecturas y un estado del equipo. El mapa está en [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json). `node-red-ingestion` lee cada `*.json` de `profiles/`, consulta los registros de ese archivo, escala cada señal, traduce el registro de calidad al vocabulario del contrato y publica el JSON de telemetría. Otro activo en este mismo host Modbus es otro archivo. Hay que reiniciar `node-red-ingestion` después de agregar o editar uno. Una señal sigue necesitando una fila en `asset_limits`, y el activo una fila en `assets`: el archivo no las escribe.
 
 El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Modbus es solo el camino por el que sus lecturas llegan al edge.
 
@@ -67,13 +67,13 @@ Tópico: `plant-01/area-01/critical-motor-01/telemetry` (QoS 1)
 
 El `asset_id` del payload tiene que coincidir con el segmento de activo del tópico; si no, el ETL rechaza el mensaje.
 
-`quality` sale de HR2 y se copia en las dos señales. El equipo la decide, y Node-RED traduce su código al vocabulario del contrato: `0` → `good`, `1` → `uncertain`, `2` → `bad`. Cualquier otro código se convierte en `bad`, porque el borde no puede garantizar una lectura cuyo estado no entiende.
+`quality` sale del registro de calidad del perfil. En este motor ese registro es HR2, y la misma calidad se copia en las dos señales. El equipo la decide, y Node-RED traduce el código con los `codes` del perfil: `0` → `good`, `1` → `uncertain`, `2` → `bad`. Un código que no está en `codes` queda en `unknown` (aquí `bad`), porque el borde no puede garantizar una lectura cuyo estado no entiende.
 
 ## Comprobación
 
 1. `docker compose up -d --build`
 2. Desde el host, un cliente Modbus TCP contra `localhost:1502`, unit `1`, lee los holding registers 0–2.
-3. En el editor de ingesta (`http://localhost:1881`), el tab **Modbus TCP Ingestion** está activo y el getter muestra actividad cada 5 segundos.
+3. En el editor de ingesta (`http://localhost:1881`), el tab **Modbus TCP Ingestion** está activo y **Read holding registers** muestra actividad cada 5 segundos.
 4. Una lectura MQTT de `plant-01/area-01/critical-motor-01/telemetry` devuelve el JSON de arriba.
 5. Grafana **Asset Health** lista `critical-motor-01`.
 6. Un minuto después de `docker compose restart modbus-slave`, llegan seis lecturas del motor con `vibration = 25` y `quality = bad`, y la tarjeta del motor sigue en `NORMAL` con "6 bad readings discarded".
