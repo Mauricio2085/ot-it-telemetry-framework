@@ -25,7 +25,7 @@ El script está en `timescaledb/init/006_rejected_messages.sql`.
 
 Una fila es un mensaje. Si falla por tres razones, `errors` tiene tres textos y el conteo de mensajes sube en uno.
 
-`rejected` no termina en `/telemetry`, así que el ETL no vuelve a leer su propio rechazo. Una caída de Timescale sigue viéndose solo en el debug del editor: esta tabla guarda violaciones del contrato.
+`rejected` no termina en `/telemetry`, así que el ETL no vuelve a leer su propio rechazo. Esta tabla guarda violaciones del contrato. Una lectura aceptada que no se puede insertar espera en la cola del ETL: [adr-spool.md](adr-spool.md). Un rechazo no entra en esa cola. Con TimescaleDB caída, el `INSERT` de `rejected_messages` falla y el rechazo igual se publica en `rejected`.
 
 ## Tabla: `rejected_messages`
 

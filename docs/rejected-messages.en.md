@@ -25,7 +25,7 @@ The script is `timescaledb/init/006_rejected_messages.sql`.
 
 One row is one message. Three reasons leave three texts in `errors` and increase the message count by one.
 
-`rejected` does not end in `/telemetry`, so the ETL does not read its own rejection again. A Timescale outage still shows only in the editor debug sidebar: this table holds contract violations.
+`rejected` does not end in `/telemetry`, so the ETL does not read its own rejection again. This table holds contract violations. An accepted reading that cannot be inserted waits in the ETL spool: [adr-spool.en.md](adr-spool.en.md). A rejection is not written to that spool. While TimescaleDB is down, the `rejected_messages` insert fails and the refusal is still published on `rejected`.
 
 ## Table: `rejected_messages`
 

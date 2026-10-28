@@ -146,7 +146,7 @@ Every reading publishes QoS 1 JSON to `plant-01/area-01/<asset_id>/telemetry`. C
 
 The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Each accepted signal is one `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
 
-On every push, GitHub Actions runs `scripts/check-contracts.py` and `scripts/check-profile.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/` and scales a known register triple.
+On every push, GitHub Actions runs `scripts/check-contracts.py`, `scripts/check-profile.js`, and `scripts/check-spool.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/` and scales a known register triple. The spool check appends a row, acknowledges it, and accepts a reading from a catalog copy.
 
 Modbus values arrive as integers in holding registers. The profile in [`profiles/`](profiles/) names the asset, the registers, the scale, and the quality codes. The motor profile multiplies HR0 by 0.1 and HR1 by 0.01; HR2 is the device status copied onto both signals. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md).
 
@@ -154,7 +154,7 @@ Modbus values arrive as integers in holding registers. The profile in [`profiles
 
 - One motor in one plant and area. Its field map is `profiles/critical-motor-01.json`: `bearing_temperature` and `vibration`. Another asset on the same Modbus host is another file in `profiles/`. `asset_limits` still evaluates the signals, and each one is stored on its own row. The file does not insert the registry or the limits.
 - The message carries one quality per signal. This slave has one device status, so both signals share it. A source that sets them apart is stored that way. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
-- A database outage is still only visible in the ETL editor's debug sidebar. Contract rejections are stored.
+- An accepted reading waits in the ETL spool when TimescaleDB is down, and the same `INSERT` runs when it returns. The spool needs a catalog copy from an earlier successful lookup. A contract rejection is not spooled. The queue depth is not on the dashboard. See [docs/adr-spool.en.md](docs/adr-spool.en.md).
 - Nothing sends notifications: a warning or alarm is only visible on the dashboard.
 - Grafana 12.0.4 picks the Y-axis tick step on its own; there is no fixed step per panel.
 - Dashboard trends read `sensor_readings`. A range older than seven days loses the line; the minute aggregate still has the summary.
@@ -170,6 +170,6 @@ The running code stores one row per signal, so condition, margin used, quality, 
 - **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That is what `sensor_readings` stores. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
 - **Metadata stays in the asset registry.** Plant, area, type, and criticality live in `assets`. Units and limits stay on `asset_limits`. A template of limits per asset type is still ahead.
 - **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md).
-- **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. A database outage still shows up only in the editor.
+- **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. An accepted reading that cannot be inserted waits in the ETL spool.
 
 The code cut that applies this direction is in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA, the pump, and the compressor have left, and the motor profile is one row per signal.
