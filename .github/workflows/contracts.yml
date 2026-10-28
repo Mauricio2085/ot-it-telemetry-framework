@@ -18,3 +18,4 @@ jobs:
         with:
           node-version: "20"
       - run: node scripts/check-profile.js
+      - run: node scripts/check-spool.js

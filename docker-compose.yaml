@@ -9,6 +9,7 @@ volumes:
   mosquitto_log:
   timescaledb_data:
   grafana_data:
+  etl_spool:
 services:
   # ===========================================================
   # BROKER MQTT LOCAL (Mosquitto)
@@ -116,13 +117,16 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASSWORD=${MQTT_PASSWORD}
+      - SPOOL_DIR=/spool
     user: "0:0"
-    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && mkdir -p /spool && chown node-red:node-red /spool && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
       - NET_ADMIN
     volumes:
       - ./nodered/etl/data:/data
       - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
+      - ./nodered/etl/spool.js:/opt/etl/spool.js:ro
+      - etl_spool:/spool
     depends_on:
       mosquitto:
         condition: service_started
