@@ -75,6 +75,7 @@ services:
       - MODBUS_HOST=${MODBUS_HOST}
       - MODBUS_PORT=${MODBUS_PORT}
       - MODBUS_UNIT_ID=${MODBUS_UNIT_ID}
+      - PROFILE_DIR=/profile
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASSWORD=${MQTT_PASSWORD}
     user: "0:0"
@@ -84,6 +85,8 @@ services:
     volumes:
       - ./nodered/ingestion/data:/data
       - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
+      - ./nodered/ingestion/profile.js:/opt/ingestion/profile.js:ro
+      - ./profiles:/profile:ro
     depends_on:
       - mosquitto
       - modbus-slave

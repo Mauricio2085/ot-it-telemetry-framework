@@ -1,5 +1,13 @@
 [
     {
+        "id": "a8f3e2c1b0d94e71",
+        "type": "tab",
+        "label": "Modbus TCP Ingestion",
+        "disabled": false,
+        "info": "Loads every JSON profile from PROFILE_DIR, polls that profile's holding registers, scales each signal, maps the quality register, and publishes plant/area/asset/telemetry. See docs/modbus-tcp.en.md.",
+        "env": []
+    },
+    {
         "id": "c876fbb4704cb969",
         "type": "mqtt-broker",
         "name": "Mosquitto Broker",
@@ -29,14 +37,6 @@
         "willMsg": {},
         "userProps": "",
         "sessionExpiry": ""
-    },
-    {
-        "id": "a8f3e2c1b0d94e71",
-        "type": "tab",
-        "label": "Modbus TCP Ingestion",
-        "disabled": false,
-        "info": "Polls modbus-slave holding registers HR0-HR2 every 5 s, scales HR0 and HR1, maps the HR2 device status to the contract quality, and publishes plant-01/area-01/critical-motor-01/telemetry. See docs/modbus-tcp.en.md.",
-        "env": []
     },
     {
         "id": "b7e6d5c4a3928170",
@@ -69,22 +69,17 @@
     },
     {
         "id": "c6d5e4f3a2819071",
-        "type": "inject",
+        "type": "function",
         "z": "a8f3e2c1b0d94e71",
-        "name": "Poll every 5 s",
-        "props": [
-            {
-                "p": "payload"
-            }
-        ],
-        "repeat": "5",
-        "crontab": "",
-        "once": true,
-        "onceDelay": "2",
-        "topic": "",
-        "payload": "",
-        "payloadType": "date",
-        "x": 140,
+        "name": "Poll profiles",
+        "func": "return null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "const profilesLib = global.get('profile');\nif (!profilesLib) {\n    node.error('profile library is not loaded');\n    node.status({ fill: 'red', shape: 'ring', text: 'profile' });\n    return;\n}\nlet profiles;\ntry {\n    profiles = profilesLib.loadProfiles(env.get('PROFILE_DIR'));\n} catch (err) {\n    node.error(err.message);\n    node.status({ fill: 'red', shape: 'ring', text: 'profile' });\n    return;\n}\nconst timers = [];\nfor (const item of profiles) {\n    const start = setTimeout(() => {\n        node.send(profilesLib.pollMessage(item));\n        const tick = setInterval(() => {\n            node.send(profilesLib.pollMessage(item));\n        }, item.poll_interval_s * 1000);\n        timers.push(tick);\n    }, 2000);\n    timers.push(start);\n}\ncontext.set('timers', timers);\nnode.status({ fill: 'green', shape: 'dot', text: profiles.length + (profiles.length === 1 ? ' profile' : ' profiles') });",
+        "finalize": "const timers = context.get('timers') || [];\nfor (const timer of timers) {\n    clearTimeout(timer);\n    clearInterval(timer);\n}\ncontext.set('timers', []);",
+        "libs": [],
+        "x": 150,
         "y": 160,
         "wires": [
             [
@@ -94,26 +89,23 @@
     },
     {
         "id": "d5c4b3a291807162",
-        "type": "modbus-getter",
+        "type": "modbus-flex-getter",
         "z": "a8f3e2c1b0d94e71",
-        "name": "Read HR0-HR2",
+        "name": "Read holding registers",
         "showStatusActivities": true,
         "showErrors": true,
         "showWarnings": true,
         "logIOActivities": false,
-        "unitid": "1",
-        "dataType": "HoldingRegister",
-        "adr": "0",
-        "quantity": "3",
         "server": "b7e6d5c4a3928170",
         "useIOFile": false,
         "ioFile": "",
         "useIOForPayload": false,
         "emptyMsgOnFail": false,
-        "keepMsgProperties": false,
+        "keepMsgProperties": true,
         "delayOnStart": false,
+        "enableDeformedMessages": false,
         "startDelayTime": "",
-        "x": 360,
+        "x": 400,
         "y": 160,
         "wires": [
             [
@@ -126,8 +118,8 @@
         "id": "e4d3c2b1a0908172",
         "type": "function",
         "z": "a8f3e2c1b0d94e71",
-        "name": "Scale and build payload",
-        "func": "const regs = Array.isArray(msg.payload)\n    ? msg.payload\n    : (msg.payload && Array.isArray(msg.payload.data) ? msg.payload.data : null);\nif (!regs || regs.length < 3) {\n    node.warn('expected 3 holding registers, got: ' + JSON.stringify(msg.payload));\n    return null;\n}\nconst toNum = (v) => (typeof v === 'number' ? v : Number(v));\n// HR2 device status. One status covers both signals. An unknown code cannot vouch for the reading, so it maps to bad.\nconst QUALITY_BY_STATUS = { 0: 'good', 1: 'uncertain', 2: 'bad' };\nconst quality = QUALITY_BY_STATUS[toNum(regs[2])] ?? 'bad';\nmsg.payload = {\n    asset_id: 'critical-motor-01',\n    ts: new Date().toISOString(),\n    signals: [\n        { name: 'bearing_temperature', value: toNum(regs[0]) / 10, quality },\n        { name: 'vibration', value: toNum(regs[1]) / 100, quality }\n    ]\n};\nreturn msg;",
+        "name": "Scale from profile",
+        "func": "const profilesLib = global.get('profile');\nconst item = msg.profile;\nif (!profilesLib || !item) {\n    node.warn('reading has no profile');\n    return null;\n}\nconst built = profilesLib.telemetryFromRegisters(item, msg.payload, new Date());\nif (built.error) {\n    node.warn(built.error);\n    return null;\n}\nmsg.topic = built.topic;\nmsg.payload = built.payload;\nreturn msg;",
         "outputs": 1,
         "timeout": 0,
         "noerr": 0,
@@ -148,7 +140,7 @@
         "type": "mqtt out",
         "z": "a8f3e2c1b0d94e71",
         "name": "Publish modbus telemetry",
-        "topic": "plant-01/area-01/critical-motor-01/telemetry",
+        "topic": "",
         "qos": "1",
         "retain": "",
         "respTopic": "",
