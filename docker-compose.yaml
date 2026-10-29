@@ -87,6 +87,7 @@ services:
       - ./nodered/ingestion/data:/data
       - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
       - ./nodered/ingestion/profile.js:/opt/ingestion/profile.js:ro
+      - ./nodered/ingestion/reconnect.js:/opt/ingestion/reconnect.js:ro
       - ./profiles:/profile:ro
     depends_on:
       - mosquitto

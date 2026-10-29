@@ -1,5 +1,8 @@
 const bcrypt = require("/usr/src/node-red/node_modules/bcryptjs");
 const profile = require("/opt/ingestion/profile.js");
+const { addReconnectCodes } = require("/opt/ingestion/reconnect.js");
+const modbusCore = require("/data/node_modules/node-red-contrib-modbus/modbus/core/modbus-client-core.js");
+addReconnectCodes(modbusCore.networkErrors);
 const adminUser = process.env.NODE_RED_ADMIN_USER;
 const adminPassword = process.env.NODE_RED_ADMIN_PASSWORD;
 if (!adminUser || !adminPassword) {
