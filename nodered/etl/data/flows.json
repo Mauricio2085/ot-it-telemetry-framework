@@ -429,8 +429,8 @@
         "type": "function",
         "z": "381ca58481ca40b3",
         "name": "Drain spool",
-        "func": "const spool = global.get('spool');\nconst dir = env.get('SPOOL_DIR');\nif (!spool) return null;\nif (flow.get('spoolBusy')) return null;\nlet row;\ntry {\n    row = spool.head(dir);\n    const depth = spool.depth(dir);\n    node.status({\n        fill: depth ? 'yellow' : 'green',\n        shape: depth ? 'ring' : 'dot',\n        text: 'spool ' + depth\n    });\n} catch (err) {\n    node.warn(err.message);\n    return null;\n}\nif (!row) return null;\nflow.set('spoolBusy', true);\nmsg.spooled = true;\nmsg.spoolId = row.id;\nmsg.payload = {\n    time: row.time,\n    asset_id: row.asset_id,\n    signal: row.signal,\n    value: row.value,\n    quality: row.quality\n};\nreturn msg;",
-        "outputs": 1,
+        "func": "const spool = global.get('spool');\nconst dir = env.get('SPOOL_DIR');\nif (!spool) return [null, null];\nlet row;\nlet depth;\ntry {\n    row = spool.head(dir);\n    depth = spool.depth(dir);\n    node.status({\n        fill: depth ? 'yellow' : 'green',\n        shape: depth ? 'ring' : 'dot',\n        text: 'spool ' + depth\n    });\n} catch (err) {\n    node.warn(err.message);\n    return [null, null];\n}\nconst depthMsg = { params: [depth] };\nif (!row || flow.get('spoolBusy')) return [null, depthMsg];\nflow.set('spoolBusy', true);\nmsg.spooled = true;\nmsg.spoolId = row.id;\nmsg.payload = {\n    time: row.time,\n    asset_id: row.asset_id,\n    signal: row.signal,\n    value: row.value,\n    quality: row.quality\n};\nreturn [msg, depthMsg];",
+        "outputs": 2,
         "timeout": 0,
         "noerr": 0,
         "initialize": "",
@@ -441,6 +441,9 @@
         "wires": [
             [
                 "769581bceb70b8b7"
+            ],
+            [
+                "c0ffee01db000007"
             ]
         ]
     },
@@ -487,6 +490,37 @@
             [
                 "c0ffee01db000004"
             ]
+        ]
+    },
+    {
+        "id": "c0ffee01db000007",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Record queue depth",
+        "query": "INSERT INTO queue_depth (id, depth, updated_at)\nVALUES (1, $1, now())\nON CONFLICT (id) DO UPDATE\nSET depth = EXCLUDED.depth, updated_at = now();",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 680,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c0ffee01db000008",
+        "type": "catch",
+        "z": "381ca58481ca40b3",
+        "name": "Drop queue depth errors",
+        "scope": [
+            "c0ffee01db000007"
+        ],
+        "uncaught": false,
+        "x": 920,
+        "y": 80,
+        "wires": [
+            []
         ]
     }
 ]

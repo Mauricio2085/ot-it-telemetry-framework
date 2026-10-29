@@ -108,5 +108,11 @@ const flows = fs.readFileSync(
 assert.strictEqual(flows.includes("ON CONFLICT DO NOTHING"), true);
 assert.strictEqual(flows.includes("spool.append"), true);
 assert.strictEqual(flows.includes("spool.decide"), true);
+assert.strictEqual(flows.includes("INSERT INTO queue_depth"), true);
+const dashboard = fs.readFileSync(
+  path.join(__dirname, "..", "grafana", "dashboards", "asset-health.json"),
+  "utf8"
+);
+assert.strictEqual(dashboard.includes("FROM queue_depth"), true);
 
 console.log("spool ok");

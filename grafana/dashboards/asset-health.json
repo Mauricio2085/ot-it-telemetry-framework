@@ -54,7 +54,7 @@
       "description": "Readings stored in the last minute. Amber below 10. A healthy minute is 11 or 12.",
       "gridPos": {
         "h": 4,
-        "w": 8,
+        "w": 6,
         "x": 0,
         "y": 1
       },
@@ -118,8 +118,8 @@
       "description": "Messages the ETL refused in the last 15 minutes. Amber at 1 or more.",
       "gridPos": {
         "h": 4,
-        "w": 8,
-        "x": 8,
+        "w": 6,
+        "x": 6,
         "y": 1
       },
       "datasource": {
@@ -182,8 +182,8 @@
       "description": "Age of the newest reading. Amber at 15 seconds or more.",
       "gridPos": {
         "h": 4,
-        "w": 8,
-        "x": 16,
+        "w": 6,
+        "x": 12,
         "y": 1
       },
       "datasource": {
@@ -237,6 +237,70 @@
           "editorMode": "code",
           "rawQuery": true,
           "rawSql": "SELECT round(extract(epoch FROM (now() - max(time))))::int AS lag_s\nFROM sensor_readings\nWHERE time > now() - interval '1 day'"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Queue depth",
+      "description": "Accepted readings waiting because the insert failed. The ETL writes this count every two seconds. Amber at 1 or more. While TimescaleDB is down the count cannot move.",
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "timescaledb"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#3A3F45",
+                "value": null
+              },
+              {
+                "color": "#F5A623",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "timescaledb"
+          },
+          "format": "table",
+          "editorMode": "code",
+          "rawQuery": true,
+          "rawSql": "SELECT depth\nFROM queue_depth\nWHERE id = 1"
         }
       ]
     },
