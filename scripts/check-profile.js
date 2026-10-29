@@ -205,7 +205,7 @@ assert.strictEqual(etlFlows.includes("Upsert registry"), true);
 assert.strictEqual(etlFlows.includes("Prune limits"), true);
 
 const compose = fs.readFileSync(path.join(root, "docker-compose.yaml"), "utf8");
-const etlService = compose.split("node-red-etl:")[1].split("timescaledb:")[0];
+const etlService = compose.split("\n  node-red-etl:\n")[1].split("\n  timescaledb:\n")[0];
 assert.strictEqual(etlService.includes("PROFILE_DIR=/profile"), true);
 assert.strictEqual(etlService.includes("./profiles:/profile:ro"), true);
 assert.strictEqual(etlService.includes("/opt/ingestion/profile.js"), true);
