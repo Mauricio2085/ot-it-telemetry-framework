@@ -63,7 +63,8 @@ services:
   # INSTANCE 1: OT INGESTION (Modbus TCP)
   # ===========================================================
   node-red-ingestion:
-    image: nodered/node-red:4.0.9
+    build: ./nodered/ingestion
+    image: edge-node-red-ingestion:4.0.9
     container_name: edge-node-red-ingestion
     restart: on-failure
     ports:
@@ -80,7 +81,7 @@ services:
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASSWORD=${MQTT_PASSWORD}
     user: "0:0"
-    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
       - NET_ADMIN
     volumes:
@@ -103,7 +104,8 @@ services:
   # INSTANCE 2: ETL / NORMALIZATION (MQTT -> TimescaleDB)
   # ===========================================================
   node-red-etl:
-    image: nodered/node-red:4.0.9
+    build: ./nodered/etl
+    image: edge-node-red-etl:4.0.9
     container_name: edge-node-red-etl
     restart: on-failure
     ports:
@@ -121,7 +123,7 @@ services:
       - SPOOL_DIR=/spool
       - PROFILE_DIR=/profile
     user: "0:0"
-    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && mkdir -p /spool && chown node-red:node-red /spool && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && mkdir -p /spool && chown node-red:node-red /spool && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
       - NET_ADMIN
     volumes:

@@ -10,6 +10,11 @@ if (!adminUser || !adminPassword) {
 module.exports = {
   // Node-RED otherwise loads flows_<hostname>.json and the committed flows never start.
   flowFile: "flows.json",
+  nodesDir: ["/opt/nodes"],
+  externalModules: {
+    autoInstall: false,
+    palette: { allowInstall: false }
+  },
   credentialSecret: process.env.NODE_RED_CREDENTIAL_SECRET,
   adminAuth: {
     type: "credentials",

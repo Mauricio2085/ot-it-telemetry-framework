@@ -1,9 +1,6 @@
 {
   "name": "node-red-ingestion",
-  "description": "Modbus TCP to MQTT ingestion flows for the IIoT asset health stack",
+  "description": "Flow files for Modbus ingestion. The Modbus nodes are installed in the image.",
   "version": "0.0.1",
-  "private": true,
-  "dependencies": {
-    "node-red-contrib-modbus": "~5.45.2"
-  }
+  "private": true
 }

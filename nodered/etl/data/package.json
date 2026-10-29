@@ -1,9 +1,6 @@
 {
   "name": "node-red-etl",
-  "description": "MQTT telemetry validation and TimescaleDB loading flows for the IIoT asset health stack",
+  "description": "Flow files for the telemetry ETL. The PostgreSQL nodes are installed in the image.",
   "version": "0.0.1",
-  "private": true,
-  "dependencies": {
-    "node-red-contrib-postgresql": "~0.16.2"
-  }
+  "private": true
 }
