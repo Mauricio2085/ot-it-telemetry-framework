@@ -78,7 +78,7 @@ The `asset_id` in the payload must match the asset segment of the topic, or the 
 5. Grafana **Asset Health** lists `critical-motor-01`.
 6. One minute after `docker compose restart modbus-slave`, six motor readings arrive with `vibration = 25` and `quality = bad`, and the motor tile stays `NORMAL` with "6 bad readings discarded".
 
-If step 3 fails, confirm `modbus-slave` is healthy and that Node-RED finished installing `node-red-contrib-modbus` (first start can take a minute).
+If step 3 fails, confirm `modbus-slave` is healthy and that the ingestion image started. The Modbus node is already in the image; startup does not download it. See [adr-image.en.md](adr-image.en.md).
 
 ### Reconnecting after the slave stops
 

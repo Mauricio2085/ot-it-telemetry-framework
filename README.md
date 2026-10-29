@@ -80,7 +80,7 @@ Colors follow ISA-101 for high-performance HMIs: `normal` is gray, and color is 
 
 The dashboard is provisioned from `grafana/dashboards/asset-health.json` and cannot be saved from the Grafana UI. Edit the file instead; Grafana reloads it within about 10 seconds, and the browser shows the change after a page refresh. Rows and tiles repeat over the assets in `asset_limits`, so a new asset shows up without editing the JSON.
 
-Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/adr-registry.en.md](docs/adr-registry.en.md) ([español](docs/adr-registry.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)).
+Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/adr-registry.en.md](docs/adr-registry.en.md) ([español](docs/adr-registry.md)), [docs/adr-image.en.md](docs/adr-image.en.md) ([español](docs/adr-image.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)).
 
 ### Pipeline
 
@@ -105,8 +105,8 @@ modbus-slave ──► Node-RED (Modbus TCP) ──► Mosquitto
 | --- | --- | --- |
 | Mosquitto | `eclipse-mosquitto:2.0.22` | 1883 |
 | modbus-slave | `./modbus-slave` | 1502 |
-| Node-RED ingestion | `nodered/node-red:4.0.9` | 1881 |
-| Node-RED ETL | `nodered/node-red:4.0.9` | 1882 |
+| Node-RED ingestion | `edge-node-red-ingestion:4.0.9` | 1881 |
+| Node-RED ETL | `edge-node-red-etl:4.0.9` | 1882 |
 | TimescaleDB | `timescale/timescaledb:2.30.2-pg17` | 127.0.0.1:5435 |
 | Grafana | `grafana/grafana-oss:12.0.4` | 3001 |
 
@@ -121,7 +121,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Change the passwords in `.env` before using the stack outside this machine. First start of `node-red-ingestion` may take a minute while it installs Modbus nodes.
+Change the passwords in `.env` before using the stack outside this machine. The Node-RED images already contain their nodes. A start does not download them. See [docs/adr-image.en.md](docs/adr-image.en.md).
 
 Services use `restart: on-failure`: Docker restarts a container that crashes, but does not start the stack when Docker itself starts. After a reboot, run `docker compose up -d` again. On Docker Desktop with WSL, containers started by Docker at boot can come up before the WSL files exist, with empty bind mounts: TimescaleDB fails to start and Grafana loads no dashboard.
 
@@ -146,7 +146,7 @@ Every reading publishes QoS 1 JSON to `plant-01/area-01/<asset_id>/telemetry`. C
 
 The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Each accepted signal is one `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
 
-On every push, GitHub Actions runs `scripts/check-contracts.py`, `scripts/check-profile.js`, `scripts/check-spool.js`, and `scripts/check-reconnect.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/`, scales a known register triple, and builds the registry payload. The spool check appends a row, acknowledges it, accepts a reading from a catalog copy, and expects the dashboard to read `queue_depth`. The reconnect check adds `ENOTFOUND` and `EAI_AGAIN` to the Modbus retry list.
+On every push, GitHub Actions runs `scripts/check-contracts.py`, `scripts/check-profile.js`, `scripts/check-spool.js`, `scripts/check-reconnect.js`, and `scripts/check-image.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/`, scales a known register triple, and builds the registry payload. The spool check appends a row, acknowledges it, accepts a reading from a catalog copy, and expects the dashboard to read `queue_depth`. The reconnect check adds `ENOTFOUND` and `EAI_AGAIN` to the Modbus retry list. The image check expects both Node-RED images to install their nodes at build time, outside `/data`.
 
 Modbus values arrive as integers in holding registers. The profile in [`profiles/`](profiles/) names the asset, the registers, the scale, the quality codes, and the limits. The motor profile multiplies HR0 by 0.1 and HR1 by 0.01; HR2 is the device status copied onto both signals. The ETL writes that asset and those limits when TimescaleDB answers. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) and [docs/adr-registry.en.md](docs/adr-registry.en.md).
 
