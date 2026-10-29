@@ -18,7 +18,9 @@ The spool lives on the ETL, in the `etl_spool` volume. It stores two files.
 
 `queue.jsonl` is one accepted row per line: `time`, `asset_id`, `signal`, `value`, and `quality`. `Append spool` writes a row when `Insert reading` fails. `Drain spool` retries that row with the same `INSERT`. `ON CONFLICT DO NOTHING` keeps a repeated row from being stored twice. `Ack spool` removes the line after the insert returns.
 
-If the ETL starts with TimescaleDB down and `catalog.json` is missing, the reading is dropped. It is not spooled and it is not rejected. The queue depth is not on the dashboard.
+If the ETL starts with TimescaleDB down and `catalog.json` is missing, the reading is dropped. It is not spooled and it is not rejected.
+
+`Drain spool` writes the waiting count to `queue_depth` every two seconds. The Asset Health pipeline reads that row. While TimescaleDB is down the row cannot move, and the dashboard cannot show it.
 
 ## Check
 

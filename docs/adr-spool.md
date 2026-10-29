@@ -18,7 +18,9 @@ La cola vive en el ETL, en el volumen `etl_spool`. Guarda dos archivos.
 
 `queue.jsonl` es una fila aceptada por línea: `time`, `asset_id`, `signal`, `value` y `quality`. `Append spool` escribe la fila cuando falla `Insert reading`. `Drain spool` la reintenta con el mismo `INSERT`. `ON CONFLICT DO NOTHING` evita guardar dos veces la fila repetida. `Ack spool` quita la línea cuando el insert responde.
 
-Si el ETL arranca con TimescaleDB caída y no existe `catalog.json`, la lectura se descarta. No se encola y no se rechaza. La profundidad de la cola no está en el tablero.
+Si el ETL arranca con TimescaleDB caída y no existe `catalog.json`, la lectura se descarta. No se encola y no se rechaza.
+
+`Drain spool` escribe cuántas lecturas esperan en `queue_depth` cada dos segundos. La banda de pipeline de Asset Health lee esa fila. Con TimescaleDB caída la fila no se mueve, y el tablero no puede mostrarla.
 
 ## Comprobación
 
