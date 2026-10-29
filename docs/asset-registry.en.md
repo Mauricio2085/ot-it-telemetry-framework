@@ -4,7 +4,7 @@
 
 The plant hierarchy lives in the `assets` table: one row per asset, with plant, area, type, and criticality. The MQTT topic is still the address of the message. The registry confirms that the address exists.
 
-The script is `timescaledb/init/004_assets.sql`.
+The motor's values come from [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json). The ETL writes them when the database answers. `timescaledb/init/004_assets.sql` creates the table and the keys; it does not insert the row.
 
 ## Table: `assets`
 
@@ -47,9 +47,9 @@ docker compose up -d timescaledb
 docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/040_assets.sql'
 ```
 
-`docker compose up -d timescaledb` is required so the container sees a newly mounted script. The script can be run more than once: it updates the motor row and does not create the keys again when they already exist. It does not delete other rows. A database that still has the pump or the compressor is recreated with the volume.
+`docker compose up -d timescaledb` is required so the container sees a newly mounted script. The script can be run more than once: it creates the keys when they are missing and it does not delete rows. A database that still has the pump or the compressor is recreated with the volume.
 
-A new asset is added in the script's `INSERT` and the script is applied again. Until that row exists, the ETL rejects its messages.
+A new asset is another `*.json` file in `profiles/`. Restart `node-red-ingestion` for the map and `node-red-etl` for the row. Until the upsert has answered, the ETL rejects its messages.
 
 ## Check
 

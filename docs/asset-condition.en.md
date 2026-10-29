@@ -2,7 +2,7 @@
 
 [Español](asset-condition.md)
 
-TimescaleDB classifies each critical asset as `normal`, `warning`, `alarm`, or `stale`. Everything lives in `timescaledb/init/002_asset_condition.sql`: a table with the engineering limits and a view that compares recent readings against them. The Grafana dashboard reads both; see [Dashboard](../README.md#dashboard).
+TimescaleDB classifies each critical asset as `normal`, `warning`, `alarm`, or `stale`. The table and the view live in `timescaledb/init/002_asset_condition.sql`. The motor's numbers live in [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json), and the ETL writes them into the table. The Grafana dashboard reads the table and the view; see [Dashboard](../README.md#dashboard).
 
 ## Limits: `asset_limits`
 
@@ -117,7 +117,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 A script that is newly mounted in `docker-compose.yaml` needs `docker compose up -d timescaledb` first, so the container sees it.
 
-Both scripts are idempotent: each can run several times and always leaves the same result, with no duplicate rows. Running the limits script again does not remove rows for other assets. A database that still has the pump or the compressor is recreated with the volume. Schema changes follow these rules so that both new and existing databases end up the same:
+Both scripts are idempotent: each can run several times and always leaves the same result, with no duplicate rows. Running the limits script again does not remove rows for other assets, and it does not write the motor's limits: those come from the profile. A database that still has the pump or the compressor is recreated with the volume. Schema changes follow these rules so that both new and existing databases end up the same:
 
 - `CREATE TABLE IF NOT EXISTS` does not change a table that already exists. Columns added later go through `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, as `nominal` does.
 - PostgreSQL has no `ADD CONSTRAINT IF NOT EXISTS`. New constraints go inside a `DO` block that checks `pg_constraint` first, as `asset_limits_nominal_check` does.
@@ -125,9 +125,15 @@ Both scripts are idempotent: each can run several times and always leaves the sa
 
 ## Changing a threshold
 
-Edit the value in the `INSERT` of `002_asset_condition.sql` and apply the script again. `ON CONFLICT ... DO UPDATE` updates the existing row, `nominal` included. The dashboard limit lines move on the next refresh.
+Edit the threshold in [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json) and restart the ETL:
 
-A direct `UPDATE` in the database also works, but leaves the file and the database with different values. The file is the source of truth: a fresh install takes whatever the file says.
+```bash
+docker compose restart node-red-etl
+```
+
+The ETL writes `assets` and `asset_limits` from that file again. The dashboard limit lines move on the next refresh.
+
+A direct `UPDATE` in the database lasts until that restart. The file is the source of truth: the ETL applies it again, and a fresh install does not seed those rows from SQL.
 
 ## Check
 

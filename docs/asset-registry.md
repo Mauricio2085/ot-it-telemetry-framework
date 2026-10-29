@@ -4,7 +4,7 @@
 
 La jerarquía de la planta vive en la tabla `assets`: una fila por activo, con planta, área, tipo y criticidad. El tópico MQTT sigue siendo la dirección del mensaje. El registro confirma que esa dirección existe.
 
-El script está en `timescaledb/init/004_assets.sql`.
+Los valores del motor salen de [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json). El ETL los escribe cuando la base responde. El script `timescaledb/init/004_assets.sql` crea la tabla y las claves; no inserta la fila.
 
 ## Tabla: `assets`
 
@@ -47,9 +47,9 @@ docker compose up -d timescaledb
 docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/040_assets.sql'
 ```
 
-`docker compose up -d timescaledb` hace falta para que el contenedor vea un script recién montado. El script se puede ejecutar varias veces: actualiza la fila del motor y no vuelve a crear las claves si ya existen. No borra otras filas. Una base que todavía tiene la bomba o el compresor se recrea con el volumen.
+`docker compose up -d timescaledb` hace falta para que el contenedor vea un script recién montado. El script se puede ejecutar varias veces: crea las claves si faltan y no borra filas. Una base que todavía tiene la bomba o el compresor se recrea con el volumen.
 
-Un activo nuevo se agrega en el `INSERT` del script y se vuelve a aplicar. Mientras no esté en `assets`, el ETL rechaza sus mensajes.
+Un activo nuevo es otro `*.json` en `profiles/`. Hay que reiniciar `node-red-ingestion` para el mapa y `node-red-etl` para la fila. Mientras el upsert no haya respondido, el ETL rechaza sus mensajes.
 
 ## Comprobación
 

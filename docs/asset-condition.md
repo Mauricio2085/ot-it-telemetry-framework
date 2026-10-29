@@ -2,7 +2,7 @@
 
 [English](asset-condition.en.md)
 
-TimescaleDB clasifica cada activo crítico como `normal`, `warning`, `alarm` o `stale`. Todo vive en `timescaledb/init/002_asset_condition.sql`: una tabla con los límites de ingeniería y una vista que compara las lecturas recientes con esos límites. El dashboard de Grafana lee ambas; ver [Dashboard](../README.md#dashboard).
+TimescaleDB clasifica cada activo crítico como `normal`, `warning`, `alarm` o `stale`. La tabla y la vista viven en `timescaledb/init/002_asset_condition.sql`. Los números del motor viven en [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json), y el ETL los escribe en la tabla. El dashboard de Grafana lee la tabla y la vista; ver [Dashboard](../README.md#dashboard).
 
 ## Límites: `asset_limits`
 
@@ -117,7 +117,7 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 
 Un script recién montado en `docker-compose.yaml` necesita antes `docker compose up -d timescaledb`, para que el contenedor lo vea.
 
-Los dos scripts son idempotentes: cada uno se puede ejecutar varias veces y siempre deja el mismo resultado, sin filas duplicadas. Volver a ejecutar el de límites no quita filas de otros activos. Una base que todavía tiene la bomba o el compresor se recrea con el volumen. Los cambios de esquema siguen estas reglas, para que una base nueva y una existente terminen iguales:
+Los dos scripts son idempotentes: cada uno se puede ejecutar varias veces y siempre deja el mismo resultado, sin filas duplicadas. Volver a ejecutar el de límites no quita filas de otros activos ni escribe los umbrales del motor: esos salen del perfil. Una base que todavía tiene la bomba o el compresor se recrea con el volumen. Los cambios de esquema siguen estas reglas, para que una base nueva y una existente terminen iguales:
 
 - `CREATE TABLE IF NOT EXISTS` no modifica una tabla que ya existe. Las columnas agregadas después van por `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, como `nominal`.
 - PostgreSQL no tiene `ADD CONSTRAINT IF NOT EXISTS`. Las reglas nuevas van dentro de un bloque `DO` que primero revisa `pg_constraint`, como `asset_limits_nominal_check`.
@@ -125,9 +125,15 @@ Los dos scripts son idempotentes: cada uno se puede ejecutar varias veces y siem
 
 ## Cambiar un umbral
 
-Edita el valor en el `INSERT` de `002_asset_condition.sql` y vuelve a aplicar el script. `ON CONFLICT ... DO UPDATE` actualiza la fila existente, incluido `nominal`. Las líneas de límite del dashboard se mueven en el siguiente refresco.
+Edita el umbral en [`profiles/critical-motor-01.json`](../profiles/critical-motor-01.json) y reinicia el ETL:
 
-Un `UPDATE` directo en la base también funciona, pero deja el archivo y la base con valores distintos. El archivo es la fuente de verdad: una instalación nueva tomará lo que diga el archivo.
+```bash
+docker compose restart node-red-etl
+```
+
+El ETL vuelve a escribir `assets` y `asset_limits` desde ese archivo. Las líneas de límite del dashboard se mueven en el siguiente refresco.
+
+Un `UPDATE` directo en la base dura hasta ese reinicio. El archivo es la fuente de verdad: el ETL lo vuelve a aplicar, y una instalación nueva no siembra esas filas en SQL.
 
 ## Comprobación
 
