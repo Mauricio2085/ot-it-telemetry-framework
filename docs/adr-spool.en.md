@@ -22,6 +22,8 @@ If the ETL starts with TimescaleDB down and `catalog.json` is missing, the readi
 
 `Drain spool` writes the waiting count to `queue_depth` every two seconds. The Asset Health pipeline reads that row. While TimescaleDB is down the row cannot move, and the dashboard cannot show it.
 
+The queue does not grow without a bound. This profile publishes two signals every 5 seconds, so seven days is 241920 lines. `append` keeps that maximum and drops the oldest lines. The depth does not pass it. An outage longer than that loses the old end: those lines never reach `sensor_readings`. The flow does not pass a different cap. The check does, with a maximum of 2, so it does not write the seven days.
+
 ## Check
 
 1. With the stack up, a motor reading is stored and `catalog.json` exists in the spool volume.
@@ -33,3 +35,4 @@ If the ETL starts with TimescaleDB down and `catalog.json` is missing, the readi
 - A contract rejection still goes to `rejected`. While the database is down, the `rejected_messages` insert fails. The MQTT publish does not.
 - The copy can be older than the registry. A signal removed from `asset_limits` during the outage is still accepted until the next successful lookup.
 - Restarting `node-red-etl` keeps the spool. The volume is the store.
+- The cap does not add another store, and it does not make the dashboard number move while the database is down. A queue that is already over the cap shrinks on the next `append`.
