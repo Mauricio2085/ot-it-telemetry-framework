@@ -101,6 +101,23 @@ assert.throws(
   /quality/
 );
 
+assert.strictEqual(spool.MAX_QUEUE_LINES, 2 * (24 * 60 * 60 / 5) * 7);
+
+const capped = tempDir();
+const sample = accepted.rows[0];
+spool.append(capped, [
+  sample,
+  { ...sample, signal: "vibration" },
+  { ...sample, time: "2026-10-28T21:00:05.000Z" }
+], 2);
+assert.strictEqual(spool.depth(capped), 2);
+assert.strictEqual(spool.head(capped).signal, "vibration");
+const newest = spool.append(capped, [{ ...sample, time: "2026-10-28T21:00:10.000Z" }], 2);
+assert.strictEqual(spool.depth(capped), 2);
+assert.strictEqual(spool.head(capped).time, "2026-10-28T21:00:05.000Z");
+assert.notStrictEqual(spool.head(capped).id, newest[0].id);
+assert.throws(() => spool.append(capped, [sample], 0), /queue limit/);
+
 const flows = fs.readFileSync(
   path.join(__dirname, "..", "nodered", "etl", "data", "flows.json"),
   "utf8"

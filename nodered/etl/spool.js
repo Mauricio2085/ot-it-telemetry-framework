@@ -4,6 +4,10 @@ const fs = require("fs");
 const path = require("path");
 
 const QUALITIES = ["good", "uncertain", "bad"];
+const POLL_INTERVAL_S = 5;
+const SIGNALS_PER_POLL = 2;
+const QUEUE_DAYS = 7;
+const MAX_QUEUE_LINES = SIGNALS_PER_POLL * (24 * 60 * 60 / POLL_INTERVAL_S) * QUEUE_DAYS;
 
 function fail(message) {
   throw new Error(`spool: ${message}`);
@@ -170,12 +174,23 @@ function asRow(row) {
   };
 }
 
-function append(dir, rows) {
+function queueLimit(maxLines) {
+  if (maxLines === undefined) return MAX_QUEUE_LINES;
+  if (!Number.isInteger(maxLines) || maxLines < 1) {
+    fail("queue limit must be a positive whole number");
+  }
+  return maxLines;
+}
+
+function append(dir, rows, maxLines) {
   if (!Array.isArray(rows) || rows.length === 0) fail("append needs at least one row");
+  const limit = queueLimit(maxLines);
   const existing = readQueue(dir);
   let next = existing.reduce((max, row) => Math.max(max, row.id || 0), 0) + 1;
   const added = rows.map((row) => Object.assign(asRow(row), { id: next++ }));
-  writeQueue(dir, existing.concat(added));
+  const combined = existing.concat(added);
+  const kept = combined.length > limit ? combined.slice(combined.length - limit) : combined;
+  writeQueue(dir, kept);
   return added;
 }
 
@@ -194,6 +209,7 @@ function depth(dir) {
 }
 
 module.exports = {
+  MAX_QUEUE_LINES,
   ack,
   append,
   decide,
