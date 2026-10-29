@@ -55,12 +55,32 @@ const shifted = {
   plant: "plant-02",
   area: "area-02",
   asset_id: "motor-02",
+  asset_type: "motor",
+  criticality: "standard",
   poll_interval_s: 5,
   modbus: {
     unit_id: 4,
     signals: [
-      { name: "bearing_temperature", register: 10, scale: 0.1 },
-      { name: "vibration", register: 12, scale: 0.01 }
+      {
+        name: "bearing_temperature",
+        register: 10,
+        scale: 0.1,
+        unit: "°C",
+        nominal: 55,
+        warning_high: 80,
+        alarm_high: 90,
+        reference: "lab default"
+      },
+      {
+        name: "vibration",
+        register: 12,
+        scale: 0.01,
+        unit: "mm/s",
+        nominal: 0.8,
+        warning_high: 2.8,
+        alarm_high: 4.5,
+        reference: "ISO 10816-3"
+      }
     ],
     quality: {
       register: 14,
@@ -81,9 +101,44 @@ assert.strictEqual(shiftedReading.payload.signals[0].value, 55);
 assert.strictEqual(shiftedReading.payload.signals[1].value, 0.8);
 assert.strictEqual(shiftedReading.payload.signals[1].quality, "good");
 
+const registry = JSON.parse(profile.registryParams([motor])[0]);
+assert.deepStrictEqual(registry, [{
+  asset_id: "critical-motor-01",
+  plant: "plant-01",
+  area: "area-01",
+  asset_type: "motor",
+  criticality: "critical",
+  signals: [
+    {
+      name: "bearing_temperature",
+      unit: "°C",
+      nominal: 55,
+      alarm_low: null,
+      warning_low: null,
+      warning_high: 80,
+      alarm_high: 90,
+      reference: "lab default"
+    },
+    {
+      name: "vibration",
+      unit: "mm/s",
+      nominal: 0.8,
+      alarm_low: null,
+      warning_low: null,
+      warning_high: 2.8,
+      alarm_high: 4.5,
+      reference: "ISO 10816-3"
+    }
+  ]
+}]);
+
 assert.throws(
   () => profile.validateProfile({ ...motor, asset_id: "plant/motor" }, "bad.json"),
   /topic segment/
+);
+assert.throws(
+  () => profile.validateProfile({ ...motor, asset_type: "pump" }, "bad.json"),
+  /asset_type must be motor/
 );
 assert.throws(
   () => profile.validateProfile({
@@ -110,5 +165,49 @@ assert.strictEqual(flows.includes("critical-motor-01"), false);
 assert.strictEqual(flows.includes("bearing_temperature"), false);
 assert.strictEqual(flows.includes("/ 10"), false);
 assert.strictEqual(flows.includes("/ 100"), false);
+
+const bare = JSON.parse(JSON.stringify(motor));
+delete bare.modbus.signals[0].warning_high;
+delete bare.modbus.signals[0].alarm_high;
+assert.throws(() => profile.validateProfile(bare, "bad.json"), /needs a limit/);
+
+const swapped = JSON.parse(JSON.stringify(motor));
+swapped.modbus.signals[1].warning_high = 5;
+swapped.modbus.signals[1].alarm_high = 4;
+assert.throws(
+  () => profile.validateProfile(swapped, "bad.json"),
+  /warning_high must be at or below alarm_high/
+);
+
+const outside = JSON.parse(JSON.stringify(motor));
+outside.modbus.signals[0].nominal = 90;
+assert.throws(
+  () => profile.validateProfile(outside, "bad.json"),
+  /nominal must sit inside the warning band/
+);
+
+const limitsSql = fs.readFileSync(
+  path.join(root, "timescaledb", "init", "002_asset_condition.sql"),
+  "utf8"
+);
+const assetsSql = fs.readFileSync(
+  path.join(root, "timescaledb", "init", "004_assets.sql"),
+  "utf8"
+);
+assert.strictEqual(/INSERT\s+INTO\s+asset_limits/i.test(limitsSql), false);
+assert.strictEqual(/INSERT\s+INTO\s+assets/i.test(assetsSql), false);
+
+const etlFlows = fs.readFileSync(
+  path.join(root, "nodered", "etl", "data", "flows.json"),
+  "utf8"
+);
+assert.strictEqual(etlFlows.includes("Upsert registry"), true);
+assert.strictEqual(etlFlows.includes("Prune limits"), true);
+
+const compose = fs.readFileSync(path.join(root, "docker-compose.yaml"), "utf8");
+const etlService = compose.split("node-red-etl:")[1].split("timescaledb:")[0];
+assert.strictEqual(etlService.includes("PROFILE_DIR=/profile"), true);
+assert.strictEqual(etlService.includes("./profiles:/profile:ro"), true);
+assert.strictEqual(etlService.includes("/opt/ingestion/profile.js"), true);
 
 console.log("profile ok");

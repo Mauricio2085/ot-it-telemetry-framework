@@ -1,5 +1,6 @@
 const bcrypt = require("/usr/src/node-red/node_modules/bcryptjs");
 const spool = require("/opt/etl/spool.js");
+const profile = require("/opt/ingestion/profile.js");
 const adminUser = process.env.NODE_RED_ADMIN_USER;
 const adminPassword = process.env.NODE_RED_ADMIN_PASSWORD;
 if (!adminUser || !adminPassword) {
@@ -19,6 +20,7 @@ module.exports = {
     }]
   },
   functionGlobalContext: {
-    spool
+    spool,
+    profile
   }
 };

@@ -119,6 +119,7 @@ services:
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASSWORD=${MQTT_PASSWORD}
       - SPOOL_DIR=/spool
+      - PROFILE_DIR=/profile
     user: "0:0"
     entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && mkdir -p /spool && chown node-red:node-red /spool && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
@@ -127,6 +128,8 @@ services:
       - ./nodered/etl/data:/data
       - ./nodered/mqtt-credentials.js:/mqtt-credentials.js:ro
       - ./nodered/etl/spool.js:/opt/etl/spool.js:ro
+      - ./nodered/ingestion/profile.js:/opt/ingestion/profile.js:ro
+      - ./profiles:/profile:ro
       - etl_spool:/spool
     depends_on:
       mosquitto:

@@ -4,6 +4,9 @@ const fs = require("fs");
 const path = require("path");
 
 const QUALITIES = ["good", "uncertain", "bad"];
+const ASSET_TYPES = ["motor"];
+const CRITICALITIES = ["critical", "standard"];
+const LIMIT_KEYS = ["alarm_low", "warning_low", "warning_high", "alarm_high"];
 const MAX_QUANTITY = 125;
 
 function fail(file, message) {
@@ -17,6 +20,67 @@ function isTopicSegment(value) {
     && !value.includes("/")
     && !value.includes("+")
     && !value.includes("#");
+}
+
+function limitValue(signal, key, file) {
+  if (!Object.prototype.hasOwnProperty.call(signal, key) || signal[key] === null) return null;
+  const value = signal[key];
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    fail(file, `signal ${signal.name} ${key} must be a finite number or null`);
+  }
+  return value;
+}
+
+function validateSignalLimits(signal, file) {
+  const name = signal.name;
+  if (typeof signal.unit !== "string" || signal.unit.length === 0) {
+    fail(file, `signal ${name} needs a unit`);
+  }
+  if (typeof signal.nominal !== "number" || !Number.isFinite(signal.nominal)) {
+    fail(file, `signal ${name} nominal must be a finite number`);
+  }
+  if (typeof signal.reference !== "string" || signal.reference.length === 0) {
+    fail(file, `signal ${name} needs a reference`);
+  }
+  const limits = {};
+  for (const key of LIMIT_KEYS) limits[key] = limitValue(signal, key, file);
+  if (LIMIT_KEYS.every((key) => limits[key] === null)) {
+    fail(file, `signal ${name} needs a limit`);
+  }
+  if (limits.alarm_low !== null && limits.warning_low !== null && limits.alarm_low > limits.warning_low) {
+    fail(file, `signal ${name} alarm_low must be at or below warning_low`);
+  }
+  if (limits.warning_high !== null && limits.alarm_high !== null && limits.warning_high > limits.alarm_high) {
+    fail(file, `signal ${name} warning_high must be at or below alarm_high`);
+  }
+  if (limits.warning_low !== null && limits.warning_high !== null && limits.warning_low >= limits.warning_high) {
+    fail(file, `signal ${name} warning_low must be below warning_high`);
+  }
+  if (limits.warning_low !== null && !(signal.nominal > limits.warning_low)) {
+    fail(file, `signal ${name} nominal must sit inside the warning band`);
+  }
+  if (limits.warning_high !== null && !(signal.nominal < limits.warning_high)) {
+    fail(file, `signal ${name} nominal must sit inside the warning band`);
+  }
+}
+
+function signalRow(signal) {
+  const row = {
+    name: signal.name,
+    unit: signal.unit,
+    nominal: signal.nominal,
+    alarm_low: null,
+    warning_low: null,
+    warning_high: null,
+    alarm_high: null,
+    reference: signal.reference
+  };
+  for (const key of LIMIT_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(signal, key) && signal[key] !== null) {
+      row[key] = signal[key];
+    }
+  }
+  return row;
 }
 
 function readWindow(profile) {
@@ -38,6 +102,12 @@ function validateProfile(profile, file) {
     if (!isTopicSegment(profile[key])) {
       fail(file, `${key} must be a topic segment`);
     }
+  }
+  if (!ASSET_TYPES.includes(profile.asset_type)) {
+    fail(file, "asset_type must be motor");
+  }
+  if (!CRITICALITIES.includes(profile.criticality)) {
+    fail(file, "criticality must be critical or standard");
   }
   if (!Number.isInteger(profile.poll_interval_s) || profile.poll_interval_s < 1) {
     fail(file, "poll_interval_s must be a whole number of seconds");
@@ -72,6 +142,7 @@ function validateProfile(profile, file) {
     if (typeof signal.scale !== "number" || !Number.isFinite(signal.scale) || signal.scale === 0) {
       fail(file, `signal ${signal.name} scale must be a finite number other than 0`);
     }
+    validateSignalLimits(signal, file);
   }
 
   const quality = modbus.quality;
@@ -106,6 +177,18 @@ function validateProfile(profile, file) {
     fail(file, `register span is ${read.quantity}, and one read can hold at most ${MAX_QUANTITY}`);
   }
   return profile;
+}
+
+function registryParams(profiles) {
+  if (!Array.isArray(profiles)) fail("", "registryParams expects a list of profiles");
+  return [JSON.stringify(profiles.map((item) => ({
+    asset_id: item.asset_id,
+    plant: item.plant,
+    area: item.area,
+    asset_type: item.asset_type,
+    criticality: item.criticality,
+    signals: item.modbus.signals.map(signalRow)
+  })))];
 }
 
 function topicFor(profile) {
@@ -207,6 +290,7 @@ function telemetryFromRegisters(profile, payload, now) {
 module.exports = {
   loadProfiles,
   pollMessage,
+  registryParams,
   telemetryFromRegisters,
   topicFor,
   validateProfile

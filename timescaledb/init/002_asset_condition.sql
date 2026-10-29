@@ -40,21 +40,7 @@ $$;
 -- The catalog no longer closes signal names. A name is valid when it has a row.
 ALTER TABLE asset_limits DROP CONSTRAINT IF EXISTS asset_limits_signal_check;
 
--- critical-motor-01 has no pressure row on purpose: a motor has no process
--- pressure.
-INSERT INTO asset_limits
-    (asset_id, signal, unit, nominal, alarm_low, warning_low, warning_high, alarm_high, reference)
-VALUES
-    ('critical-motor-01',      'bearing_temperature', '°C',   55.0, NULL, NULL,  80.0,  90.0,  'lab default'),
-    ('critical-motor-01',      'vibration',   'mm/s', 0.8,  NULL, NULL,  2.8,   4.5,   'ISO 10816-3')
-ON CONFLICT (asset_id, signal) DO UPDATE SET
-    unit         = EXCLUDED.unit,
-    nominal      = EXCLUDED.nominal,
-    alarm_low    = EXCLUDED.alarm_low,
-    warning_low  = EXCLUDED.warning_low,
-    warning_high = EXCLUDED.warning_high,
-    alarm_high   = EXCLUDED.alarm_high,
-    reference    = EXCLUDED.reference;
+-- Rows come from the profile. node-red-etl upserts them. This script does not.
 
 -- One row per asset and signal that has limits. Each signal is judged on its
 -- 1-minute average, or 'stale' when no usable reading arrived in that minute.

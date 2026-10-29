@@ -2,12 +2,32 @@
   "plant": "plant-01",
   "area": "area-01",
   "asset_id": "critical-motor-01",
+  "asset_type": "motor",
+  "criticality": "critical",
   "poll_interval_s": 5,
   "modbus": {
     "unit_id": 1,
     "signals": [
-      { "name": "bearing_temperature", "register": 0, "scale": 0.1 },
-      { "name": "vibration", "register": 1, "scale": 0.01 }
+      {
+        "name": "bearing_temperature",
+        "register": 0,
+        "scale": 0.1,
+        "unit": "°C",
+        "nominal": 55,
+        "warning_high": 80,
+        "alarm_high": 90,
+        "reference": "lab default"
+      },
+      {
+        "name": "vibration",
+        "register": 1,
+        "scale": 0.01,
+        "unit": "mm/s",
+        "nominal": 0.8,
+        "warning_high": 2.8,
+        "alarm_high": 4.5,
+        "reference": "ISO 10816-3"
+      }
     ],
     "quality": {
       "register": 2,

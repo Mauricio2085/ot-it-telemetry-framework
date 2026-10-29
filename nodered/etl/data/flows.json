@@ -4,7 +4,7 @@
         "type": "tab",
         "label": "Telemetry ETL",
         "disabled": false,
-        "info": "Subscribes to +/+/+/telemetry, validates each payload, checks the asset against the registry, and inserts one sensor_readings row per signal that has an asset_limits row. A failed lookup uses the catalog copy. A failed insert appends the accepted row to the spool and retries the same INSERT. A refused signal is published to the topic rejected and inserted into rejected_messages.",
+        "info": "Subscribes to +/+/+/telemetry, validates each payload, checks the asset against the registry, and inserts one sensor_readings row per signal that has an asset_limits row. On start, and until the database answers, it upserts assets and asset_limits from PROFILE_DIR. A failed lookup uses the catalog copy. A failed insert appends the accepted row to the spool and retries the same INSERT. A refused signal is published to the topic rejected and inserted into rejected_messages.",
         "env": []
     },
     {
@@ -521,6 +521,161 @@
         "y": 80,
         "wires": [
             []
+        ]
+    },
+    {
+        "id": "c0ffee01db000009",
+        "type": "inject",
+        "z": "381ca58481ca40b3",
+        "name": "Apply profiles",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "5",
+        "crontab": "",
+        "once": true,
+        "onceDelay": "0.5",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 220,
+        "y": 520,
+        "wires": [
+            [
+                "c0ffee01db00000a"
+            ]
+        ]
+    },
+    {
+        "id": "c0ffee01db00000a",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Build registry upsert",
+        "func": "const profile = global.get('profile');\nif (!profile) {\n    node.error('profile library is not loaded');\n    return null;\n}\nif (flow.get('registryApplied') || flow.get('registryBusy')) return null;\nlet profiles;\ntry {\n    profiles = profile.loadProfiles(env.get('PROFILE_DIR'));\n} catch (err) {\n    node.error(err.message);\n    return null;\n}\nconst params = profile.registryParams(profiles);\nflow.set('registryBusy', true);\nmsg.registry = params[0];\nmsg.params = params;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 520,
+        "wires": [
+            [
+                "c0ffee01db00000b"
+            ]
+        ]
+    },
+    {
+        "id": "c0ffee01db00000b",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Upsert registry",
+        "query": "WITH incoming AS (\n    SELECT *\n    FROM jsonb_to_recordset($1::jsonb) AS p(\n        asset_id text,\n        plant text,\n        area text,\n        asset_type text,\n        criticality text,\n        signals jsonb\n    )\n),\nupsert_asset AS (\n    INSERT INTO assets (asset_id, plant, area, asset_type, criticality)\n    SELECT asset_id, plant, area, asset_type, criticality\n    FROM incoming\n    ON CONFLICT (asset_id) DO UPDATE SET\n        plant = EXCLUDED.plant,\n        area = EXCLUDED.area,\n        asset_type = EXCLUDED.asset_type,\n        criticality = EXCLUDED.criticality\n    RETURNING asset_id\n)\nINSERT INTO asset_limits (\n    asset_id, signal, unit, nominal,\n    alarm_low, warning_low, warning_high, alarm_high, reference\n)\nSELECT i.asset_id, s.name, s.unit, s.nominal,\n       s.alarm_low, s.warning_low, s.warning_high, s.alarm_high, s.reference\nFROM incoming i\nJOIN upsert_asset a ON a.asset_id = i.asset_id\nCROSS JOIN LATERAL jsonb_to_recordset(i.signals) AS s(\n    name text,\n    unit text,\n    nominal double precision,\n    alarm_low double precision,\n    warning_low double precision,\n    warning_high double precision,\n    alarm_high double precision,\n    reference text\n)\nON CONFLICT (asset_id, signal) DO UPDATE SET\n    unit = EXCLUDED.unit,\n    nominal = EXCLUDED.nominal,\n    alarm_low = EXCLUDED.alarm_low,\n    warning_low = EXCLUDED.warning_low,\n    warning_high = EXCLUDED.warning_high,\n    alarm_high = EXCLUDED.alarm_high,\n    reference = EXCLUDED.reference",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 700,
+        "y": 520,
+        "wires": [
+            [
+                "c0ffee01db00000c"
+            ]
+        ]
+    },
+    {
+        "id": "c0ffee01db00000c",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Keep registry params",
+        "func": "msg.params = [msg.registry];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 520,
+        "wires": [
+            [
+                "c0ffee01db00000d"
+            ]
+        ]
+    },
+    {
+        "id": "c0ffee01db00000d",
+        "type": "postgresql",
+        "z": "381ca58481ca40b3",
+        "name": "Prune limits",
+        "query": "DELETE FROM asset_limits AS existing\nWHERE existing.asset_id IN (\n    SELECT p.asset_id\n    FROM jsonb_to_recordset($1::jsonb) AS p(asset_id text)\n)\nAND NOT EXISTS (\n    SELECT 1\n    FROM jsonb_to_recordset($1::jsonb) AS p(asset_id text, signals jsonb)\n    CROSS JOIN LATERAL jsonb_to_recordset(p.signals) AS s(name text)\n    WHERE p.asset_id = existing.asset_id\n      AND s.name = existing.signal\n)",
+        "postgreSQLConfig": "0a4795f3533d5ec7",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1120,
+        "y": 520,
+        "wires": [
+            [
+                "c0ffee01db00000e"
+            ]
+        ]
+    },
+    {
+        "id": "c0ffee01db00000e",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Mark registry applied",
+        "func": "flow.set('registryApplied', true);\nflow.set('registryBusy', false);\nnode.status({ fill: 'green', shape: 'dot', text: 'registry applied' });\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1340,
+        "y": 520,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c0ffee01db00000f",
+        "type": "function",
+        "z": "381ca58481ca40b3",
+        "name": "Release registry retry",
+        "func": "flow.set('registryBusy', false);\nnode.warn('registry upsert failed');\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 980,
+        "y": 600,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c0ffee01db000010",
+        "type": "catch",
+        "z": "381ca58481ca40b3",
+        "name": "Catch registry errors",
+        "scope": [
+            "c0ffee01db00000b",
+            "c0ffee01db00000d"
+        ],
+        "uncaught": false,
+        "x": 720,
+        "y": 600,
+        "wires": [
+            [
+                "c0ffee01db00000f"
+            ]
         ]
     }
 ]

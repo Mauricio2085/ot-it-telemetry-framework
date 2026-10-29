@@ -17,14 +17,7 @@ CREATE TABLE IF NOT EXISTS assets (
         CHECK (criticality IN ('critical', 'standard'))
 );
 
-INSERT INTO assets (asset_id, plant, area, asset_type, criticality)
-VALUES
-    ('critical-motor-01',      'plant-01', 'area-01', 'motor',      'critical')
-ON CONFLICT (asset_id) DO UPDATE SET
-    plant       = EXCLUDED.plant,
-    area        = EXCLUDED.area,
-    asset_type  = EXCLUDED.asset_type,
-    criticality = EXCLUDED.criticality;
+-- Rows come from the profile. node-red-etl upserts them. This script does not.
 
 -- PostgreSQL has no ADD CONSTRAINT IF NOT EXISTS.
 -- ON DELETE RESTRICT keeps history when someone removes a registry row.
