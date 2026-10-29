@@ -82,15 +82,11 @@ Si el paso 3 falla, confirma que `modbus-slave` está sano y que Node-RED termin
 
 ### Reconexión después de detener el slave
 
-Si `modbus-slave` se detiene con `docker compose stop`, el cliente Modbus de Node-RED no se reconecta solo cuando el slave vuelve. Con el contenedor detenido, el DNS de Docker deja de resolver `modbus-slave` y el cliente recibe `ENOTFOUND`. `node-red-contrib-modbus` 5.45.2 no incluye ese código entre los errores que disparan un reintento, así que el cliente queda detenido en su estado inicial y no vuelve a leer.
+`node-red-contrib-modbus` 5.45.2 reintenta una falla TCP cuando el código está en su lista (`ECONNREFUSED`, `ETIMEDOUT` y el resto de esa lista). Detener `modbus-slave` con `docker compose stop` quita el nombre `modbus-slave`. La conexión siguiente recibe `ENOTFOUND`, que no está en esa lista, así que el cliente se quedaba en su estado inicial.
 
-Mientras tanto, `critical-motor-01` aparece como `stale` en `asset_condition`. Para recuperarlo:
+La ingesta agrega `ENOTFOUND` y `EAI_AGAIN` a la lista cuando arranca Node-RED. El cliente usa entonces su propio reintento, cada `reconnectTimeout` (2 segundos). Mientras el slave está detenido el motor queda `stale`. Cuando el slave vuelve, el siguiente poll que responde publica de nuevo. No hace falta reiniciar `node-red-ingestion`.
 
-```bash
-docker compose restart node-red-ingestion
-```
-
-En las pruebas, `docker compose restart modbus-slave` se recuperó solo, porque el slave vuelve en un par de segundos; una parada más larga deja el cliente atascado. La reconexión automática queda pendiente para la fase de frontera OT.
+Un `docker compose restart modbus-slave` que vuelve en un par de segundos ya se recuperaba antes de este cambio, porque el nombre no llegaba a faltar el tiempo suficiente.
 
 ## RTU (horizonte)
 

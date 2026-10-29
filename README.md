@@ -146,7 +146,7 @@ Every reading publishes QoS 1 JSON to `plant-01/area-01/<asset_id>/telemetry`. C
 
 The ETL flow accepts the message only when `asset_id` matches the topic, `signals` is a non-empty list, each signal has a name, a finite value, and a quality, `ts` is a timestamp, and the asset is in the registry with the same plant and area as the topic. A signal with no `asset_limits` row is rejected. Each accepted signal is one `sensor_readings` row. Plant, area, type, and criticality live in `assets`: [docs/asset-registry.en.md](docs/asset-registry.en.md). A refused message is published to the MQTT topic `rejected` and stored in `rejected_messages`: [docs/rejected-messages.en.md](docs/rejected-messages.en.md).
 
-On every push, GitHub Actions runs `scripts/check-contracts.py`, `scripts/check-profile.js`, and `scripts/check-spool.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/` and scales a known register triple. The spool check appends a row, acknowledges it, and accepts a reading from a catalog copy.
+On every push, GitHub Actions runs `scripts/check-contracts.py`, `scripts/check-profile.js`, `scripts/check-spool.js`, and `scripts/check-reconnect.js`. The v2 examples have to match [`contracts/telemetry-v2.schema.json`](contracts/telemetry-v2.schema.json), and [`grafana/dashboards/asset-health.json`](grafana/dashboards/asset-health.json) has to be the Asset Health dashboard on the `timescaledb` datasource. The profile check loads `profiles/` and scales a known register triple. The spool check appends a row, acknowledges it, and accepts a reading from a catalog copy. The reconnect check adds `ENOTFOUND` and `EAI_AGAIN` to the Modbus retry list.
 
 Modbus values arrive as integers in holding registers. The profile in [`profiles/`](profiles/) names the asset, the registers, the scale, and the quality codes. The motor profile multiplies HR0 by 0.1 and HR1 by 0.01; HR2 is the device status copied onto both signals. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md).
 
@@ -160,7 +160,6 @@ Modbus values arrive as integers in holding registers. The profile in [`profiles
 - Dashboard trends read `sensor_readings`. A range older than seven days loses the line; the minute aggregate still has the summary.
 - Database changes after the first start are applied by hand with `psql`; there is no migration tool.
 - Modbus RTU is not implemented (serial / USB horizon only).
-- After `docker compose stop modbus-slave`, the Node-RED Modbus client does not reconnect on its own; run `docker compose restart node-red-ingestion`. See [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md#reconnecting-after-the-slave-stops).
 
 ### Accepted direction
 
