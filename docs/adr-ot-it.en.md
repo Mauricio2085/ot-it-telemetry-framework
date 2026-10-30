@@ -41,15 +41,14 @@ Sparkplug B is a different namespace, `spBv1.0/group/message_type/edge_node/devi
 
 These limits stay lab limits:
 
-- There is one MQTT account. `allow_anonymous false`, and there is no ACL. Whoever has `MQTT_USER` and `MQTT_PASSWORD` can publish and subscribe to any topic.
-- Port `1883` is published on the host. TimescaleDB listens on `127.0.0.1:5435`.
+- Port `1883` is published on the host, in the clear. TimescaleDB listens on `127.0.0.1:5435`.
 - `rejected` is a flat topic.
 
-The compose file, the flows, and the topics stay as they are.
+The two accounts, the ACL, and the workshop ports that are no longer published are in [adr-access.en.md](adr-access.en.md). The topic in this text does not change.
 
 ## Consequences
 
-- An open ingestion editor cannot reach TimescaleDB by the name `timescaledb` or by an `it-net` address inside `172.16.0.0/12`. With the MQTT account it can publish to any topic.
+- An open ingestion editor cannot reach TimescaleDB by the name `timescaledb` or by an `it-net` address inside `172.16.0.0/12`. Its MQTT account can only publish to `+/+/+/telemetry`.
 - A device that stops publishing becomes `stale` when the last minute has no usable readings.
 - A new plant or area is a row in `assets` and two segments of the topic. A fifth level changes the `+/+/+/telemetry` subscription and the topic split in the ETL.
 - Sparkplug B is named and not implemented.

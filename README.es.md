@@ -34,6 +34,6 @@ docker compose up -d --build
 
 Cambia las contraseñas de `.env` antes de usar el stack fuera de esta máquina.
 
-Grafana queda en `http://localhost:3001`, dashboard **Asset Health**. Los editores de Node-RED piden usuario en `http://localhost:1881` y `http://localhost:1882`.
+Grafana queda en `http://localhost:3001`, dashboard **Asset Health**. Los editores de Node-RED y el esclavo Modbus no se publican en el host. El broker tiene dos cuentas: la ingesta solo publica telemetría y el ETL solo se suscribe a ella y publica rechazos. Ver [docs/adr-access.md](docs/adr-access.md).
 
 La arquitectura, los puertos y el contrato del código actual —el motor, una fila por señal— están en el [README en inglés](README.md).

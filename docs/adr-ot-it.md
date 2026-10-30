@@ -41,15 +41,14 @@ Sparkplug B es otro namespace, `spBv1.0/grupo/tipo/nodo/dispositivo`, con mensaj
 
 Estos límites siguen siendo de laboratorio:
 
-- Hay una sola cuenta MQTT. `allow_anonymous false` y no hay ACL. Quien tiene `MQTT_USER` y `MQTT_PASSWORD` publica y se suscribe a cualquier tópico.
-- El puerto `1883` se publica en el host. TimescaleDB escucha en `127.0.0.1:5435`.
+- El puerto `1883` se publica en el host, en claro. TimescaleDB escucha en `127.0.0.1:5435`.
 - `rejected` es un tópico plano.
 
-El compose, los flujos y los tópicos quedan como están.
+Las dos cuentas, el ACL y los puertos de taller que ya no se publican están en [adr-access.md](adr-access.md). El tópico de este texto no cambia.
 
 ## Consecuencias
 
-- Un editor de ingesta abierto no llega a TimescaleDB por el nombre `timescaledb` ni por una IP de `it-net` dentro de `172.16.0.0/12`. Con la cuenta MQTT sí publica en cualquier tópico.
+- Un editor de ingesta abierto no llega a TimescaleDB por el nombre `timescaledb` ni por una IP de `it-net` dentro de `172.16.0.0/12`. Su cuenta MQTT solo publica en `+/+/+/telemetry`.
 - Un equipo que deja de publicar queda `stale` cuando el último minuto no tiene lecturas utilizables.
 - Una planta o un área nuevos son una fila de `assets` y dos segmentos del tópico. Un quinto nivel cambia la suscripción `+/+/+/telemetry` y el corte del tópico en el ETL.
 - Sparkplug B queda nombrado y sin implementar.

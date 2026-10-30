@@ -18,7 +18,7 @@ El activo es un motor, no una "bomba Modbus". El `asset_id` nombra el equipo; Mo
 
 - Unit id: `1`
 - Puerto en el contenedor: `502`
-- Puerto en el host: `1502` (`localhost:1502` desde la máquina)
+- El host no publica ese puerto. La ingesta lo alcanza por el nombre `modbus-slave` en `ot-net`
 - Punto nominal: ~55 °C, ~0.8 mm/s
 - El ruido suave es un seno lento más un jitter pequeño
 
@@ -72,13 +72,12 @@ El `asset_id` del payload tiene que coincidir con el segmento de activo del tóp
 ## Comprobación
 
 1. `docker compose up -d --build`
-2. Desde el host, un cliente Modbus TCP contra `localhost:1502`, unit `1`, lee los holding registers 0–2.
-3. En el editor de ingesta (`http://localhost:1881`), el tab **Modbus TCP Ingestion** está activo y **Read holding registers** muestra actividad cada 5 segundos.
-4. Una lectura MQTT de `plant-01/area-01/critical-motor-01/telemetry` devuelve el JSON de arriba.
-5. Grafana **Asset Health** lista `critical-motor-01`.
-6. Un minuto después de `docker compose restart modbus-slave`, llegan seis lecturas del motor con `vibration = 25` y `quality = bad`, y la tarjeta del motor sigue en `NORMAL` con "6 bad readings discarded".
+2. El host no escucha en `1502` ni en `1881`.
+3. En menos de un minuto, Grafana **Asset Health** lista `critical-motor-01`. Eso muestra que el poll y la publicación funcionan.
+4. Con la cuenta del ETL, una suscripción a `plant-01/area-01/critical-motor-01/telemetry` devuelve el JSON de arriba. La cuenta de ingesta, suscrita a `#`, no recibe mensajes. Ver [adr-access.md](adr-access.md).
+5. Un minuto después de `docker compose restart modbus-slave`, llegan seis lecturas del motor con `vibration = 25` y `quality = bad`, y la tarjeta del motor sigue en `NORMAL` con "6 bad readings discarded".
 
-Si el paso 3 falla, confirma que `modbus-slave` está sano y que la imagen de ingesta arrancó. El nodo Modbus ya está en la imagen; el arranque no lo descarga. Ver [adr-image.md](adr-image.md).
+Si el motor no aparece en Grafana, confirma que `modbus-slave` está sano y que la imagen de ingesta arrancó. El nodo Modbus ya está en la imagen; el arranque no lo descarga. Ver [adr-image.md](adr-image.md).
 
 ### Reconexión después de detener el slave
 

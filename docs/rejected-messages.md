@@ -2,7 +2,7 @@
 
 [English](rejected-messages.en.md)
 
-Un mensaje que no cumple el contrato no entra en `sensor_readings`. El ETL lo publica en el tópico MQTT `rejected` y guarda una fila en `rejected_messages`. El tópico es la cola para verlo en vivo. La tabla es el conteo y el historial.
+Un mensaje que no cumple el contrato no entra en `sensor_readings`. El ETL lo publica en el tópico MQTT `rejected` y guarda una fila en `rejected_messages`. La tabla es el conteo y el historial. Ni la cuenta de ingesta ni la del ETL reciben mensajes de `rejected`. Ver [adr-access.md](adr-access.md).
 
 El script está en `timescaledb/init/006_rejected_messages.sql`.
 
@@ -48,12 +48,6 @@ El conteo por razón:
 docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT reason, count(*) FROM rejected_messages, unnest(errors) AS reason GROUP BY reason ORDER BY count(*) DESC;"'
 ```
 
-Para verlos llegar:
-
-```bash
-docker compose exec mosquitto sh -c 'mosquitto_sub -h localhost -u "$MQTT_USER" -P "$MQTT_PASSWORD" -t rejected -v'
-```
-
 ## Aplicar el script en una base existente
 
 ```bash
@@ -66,6 +60,6 @@ docker compose exec -T timescaledb sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES
 ## Comprobación
 
 1. Un mensaje con la calidad de una señal fuera de la lista, o con una señal que no está en `asset_limits`, no guarda esa señal en `sensor_readings`.
-2. Ese mensaje aparece una vez en `rejected_messages`, con todas sus razones en `errors`, y también llega a `mosquitto_sub -t rejected` con `MQTT_USER`.
+2. Ese mensaje aparece una vez en `rejected_messages`, con todas sus razones en `errors`. Una suscripción a `rejected` con la cuenta de ingesta o con la del ETL no recibe ese mensaje.
 3. Un `asset_id` que no está en `assets` hace lo mismo.
 4. Una lectura válida del motor no agrega fila en `rejected_messages`.

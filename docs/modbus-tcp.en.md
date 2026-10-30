@@ -18,7 +18,7 @@ The asset is a motor, not a "Modbus pump". The `asset_id` names the equipment; M
 
 - Unit id: `1`
 - Container port: `502`
-- Host port: `1502` (`localhost:1502` from the host)
+- The host does not publish that port. Ingestion reaches it by the name `modbus-slave` on `ot-net`
 - Nominal point: ~55 °C, ~0.8 mm/s
 - Soft noise is a slow sine drift plus small jitter
 
@@ -72,13 +72,12 @@ The `asset_id` in the payload must match the asset segment of the topic, or the 
 ## Check
 
 1. `docker compose up -d --build`
-2. From the host, a Modbus TCP client against `localhost:1502`, unit `1`, can read holding registers 0–2.
-3. In the ingestion editor (`http://localhost:1881`), the **Modbus TCP Ingestion** tab is enabled and **Read holding registers** shows activity every 5 seconds.
-4. An MQTT read of `plant-01/area-01/critical-motor-01/telemetry` returns the JSON above.
-5. Grafana **Asset Health** lists `critical-motor-01`.
-6. One minute after `docker compose restart modbus-slave`, six motor readings arrive with `vibration = 25` and `quality = bad`, and the motor tile stays `NORMAL` with "6 bad readings discarded".
+2. The host does not listen on `1502` or `1881`.
+3. Within a minute, Grafana **Asset Health** lists `critical-motor-01`. That shows the poll and the publish are working.
+4. With the ETL account, a subscription to `plant-01/area-01/critical-motor-01/telemetry` returns the JSON above. The ingestion account, subscribed to `#`, receives no messages. See [adr-access.en.md](adr-access.en.md).
+5. One minute after `docker compose restart modbus-slave`, six motor readings arrive with `vibration = 25` and `quality = bad`, and the motor tile stays `NORMAL` with "6 bad readings discarded".
 
-If step 3 fails, confirm `modbus-slave` is healthy and that the ingestion image started. The Modbus node is already in the image; startup does not download it. See [adr-image.en.md](adr-image.en.md).
+If the motor does not show up in Grafana, confirm `modbus-slave` is healthy and that the ingestion image started. The Modbus node is already in the image; startup does not download it. See [adr-image.en.md](adr-image.en.md).
 
 ### Reconnecting after the slave stops
 
