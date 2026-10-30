@@ -21,3 +21,4 @@ jobs:
       - run: node scripts/check-spool.js
       - run: node scripts/check-reconnect.js
       - run: node scripts/check-image.js
+      - run: node scripts/check-broker.js

@@ -7,6 +7,9 @@
  * the references ${MQTT_USER} and ${MQTT_PASSWORD} there. Node-RED expands
  * those references from the environment when the node starts, so the password
  * is not committed and a fresh clone still connects.
+ *
+ * Compose maps this container's account onto those two names: the ingestion
+ * account in the ingestion container, the ETL account in the ETL container.
  */
 "use strict";
 
