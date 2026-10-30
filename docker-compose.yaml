@@ -10,7 +10,24 @@ volumes:
   timescaledb_data:
   grafana_data:
   etl_spool:
+  mqtt_ca:
 services:
+  # ===========================================================
+  # BROKER CERTIFICATE (one shot, before Mosquitto listens)
+  # ===========================================================
+  mqtt-certs:
+    image: nodered/node-red:4.0.9
+    container_name: edge-mqtt-certs
+    user: "0:0"
+    restart: "no"
+    entrypoint: ["/bin/bash", "/certs.sh"]
+    volumes:
+      - ./mosquitto/certs.sh:/certs.sh:ro
+      - mosquitto_data:/mosquitto/data
+      - mqtt_ca:/mqtt-ca
+    networks:
+      - ot-net
+
   # ===========================================================
   # BROKER MQTT LOCAL (Mosquitto)
   # ===========================================================
@@ -19,18 +36,22 @@ services:
     container_name: edge-mosquitto
     restart: on-failure
     ports:
-      - "1883:1883" # Standard MQTT port
+      - "8883:8883" # MQTT over TLS
     entrypoint: ["/bin/sh", "/usr/local/bin/mosquitto-auth-entrypoint.sh"]
     volumes:
-      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/broker.conf:/broker.conf:ro
       - ./mosquitto/docker-entrypoint.sh:/usr/local/bin/mosquitto-auth-entrypoint.sh:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
+      - mqtt_ca:/mqtt-ca:ro
     environment:
       - MQTT_INGEST_USER=${MQTT_INGEST_USER}
       - MQTT_INGEST_PASSWORD=${MQTT_INGEST_PASSWORD}
       - MQTT_ETL_USER=${MQTT_ETL_USER}
       - MQTT_ETL_PASSWORD=${MQTT_ETL_PASSWORD}
+    depends_on:
+      mqtt-certs:
+        condition: service_completed_successfully
     networks:
       - ot-net
       - it-net
@@ -79,7 +100,7 @@ services:
       - MQTT_USER=${MQTT_INGEST_USER}
       - MQTT_PASSWORD=${MQTT_INGEST_PASSWORD}
     user: "0:0"
-    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25; do [ -s /mqtt-ca/ca.crt ] && break; sleep 0.2; done && [ -s /mqtt-ca/ca.crt ] && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
       - NET_ADMIN
     volumes:
@@ -88,6 +109,7 @@ services:
       - ./nodered/ingestion/profile.js:/opt/ingestion/profile.js:ro
       - ./nodered/ingestion/reconnect.js:/opt/ingestion/reconnect.js:ro
       - ./profiles:/profile:ro
+      - mqtt_ca:/mqtt-ca:ro
     depends_on:
       - mosquitto
       - modbus-slave
@@ -119,7 +141,7 @@ services:
       - SPOOL_DIR=/spool
       - PROFILE_DIR=/profile
     user: "0:0"
-    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && mkdir -p /spool && chown node-red:node-red /spool && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
+    entrypoint: ["/bin/bash", "-c", "ip route add prohibit 172.16.0.0/12 && rm -rf /data/node_modules && mkdir -p /spool && chown node-red:node-red /spool && for n in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25; do [ -s /mqtt-ca/ca.crt ] && break; sleep 0.2; done && [ -s /mqtt-ca/ca.crt ] && exec su -s /bin/bash node-red -c 'node /mqtt-credentials.js && exec ./entrypoint.sh'"]
     cap_add:
       - NET_ADMIN
     volumes:
@@ -129,6 +151,7 @@ services:
       - ./nodered/ingestion/profile.js:/opt/ingestion/profile.js:ro
       - ./profiles:/profile:ro
       - etl_spool:/spool
+      - mqtt_ca:/mqtt-ca:ro
     depends_on:
       mosquitto:
         condition: service_started
