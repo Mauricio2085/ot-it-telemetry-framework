@@ -41,7 +41,7 @@ Sparkplug B es otro namespace, `spBv1.0/grupo/tipo/nodo/dispositivo`, con mensaj
 
 Estos límites siguen siendo de laboratorio:
 
-- El puerto `1883` se publica en el host, en claro. TimescaleDB escucha en `127.0.0.1:5435`.
+- TimescaleDB escucha en `127.0.0.1:5435`. El broker publica `8883` con TLS: [adr-tls.md](adr-tls.md).
 - `rejected` es un tópico plano.
 
 Las dos cuentas, el ACL y los puertos de taller que ya no se publican están en [adr-access.md](adr-access.md). El tópico de este texto no cambia.

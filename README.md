@@ -80,7 +80,7 @@ Colors follow ISA-101 for high-performance HMIs: `normal` is gray, and color is 
 
 The dashboard is provisioned from `grafana/dashboards/asset-health.json` and cannot be saved from the Grafana UI. Edit the file instead; Grafana reloads it within about 10 seconds, and the browser shows the change after a page refresh. Rows and tiles repeat over the assets in `asset_limits`, so a new asset shows up without editing the JSON.
 
-Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/adr-registry.en.md](docs/adr-registry.en.md) ([español](docs/adr-registry.md)), [docs/adr-image.en.md](docs/adr-image.en.md) ([español](docs/adr-image.md)), [docs/adr-access.en.md](docs/adr-access.en.md) ([español](docs/adr-access.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)).
+Reference: [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)), [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) ([español](docs/adr-ot-it.md)), [docs/adr-measurements.en.md](docs/adr-measurements.en.md) ([español](docs/adr-measurements.md)), [docs/adr-registry.en.md](docs/adr-registry.en.md) ([español](docs/adr-registry.md)), [docs/adr-image.en.md](docs/adr-image.en.md) ([español](docs/adr-image.md)), [docs/adr-access.en.md](docs/adr-access.en.md) ([español](docs/adr-access.md)), [docs/adr-tls.en.md](docs/adr-tls.en.md) ([español](docs/adr-tls.md)), [docs/modbus-tcp.en.md](docs/modbus-tcp.en.md) ([español](docs/modbus-tcp.md)), [docs/asset-condition.en.md](docs/asset-condition.en.md) ([español](docs/asset-condition.md)), [docs/asset-registry.en.md](docs/asset-registry.en.md) ([español](docs/asset-registry.md)), [docs/readings-history.en.md](docs/readings-history.en.md) ([español](docs/readings-history.md)), [docs/rejected-messages.en.md](docs/rejected-messages.en.md) ([español](docs/rejected-messages.md)).
 
 ### Pipeline
 
@@ -97,13 +97,13 @@ modbus-slave ──► Node-RED (Modbus TCP) ──► Mosquitto
                                            Grafana
 ```
 
-`ot-net` holds the Modbus slave and ingestion. `it-net` holds the ETL, TimescaleDB, and Grafana. Mosquitto is attached to both, so a reading crosses only as an MQTT message. A name on the other network does not resolve. Each Node-RED also prohibits the other Docker subnets, so a guessed IP is refused. TimescaleDB is published only on `127.0.0.1:5435`, so another machine on the LAN cannot open it. Grafana and the ETL use the name `timescaledb` on `it-net`. The ingestion editor, the ETL editor, and the Modbus slave are not published on the host. MQTT stays on `1883` without TLS. See [docs/adr-access.en.md](docs/adr-access.en.md).
+`ot-net` holds the Modbus slave and ingestion. `it-net` holds the ETL, TimescaleDB, and Grafana. Mosquitto is attached to both, so a reading crosses only as an MQTT message. A name on the other network does not resolve. Each Node-RED also prohibits the other Docker subnets, so a guessed IP is refused. TimescaleDB is published only on `127.0.0.1:5435`, so another machine on the LAN cannot open it. Grafana and the ETL use the name `timescaledb` on `it-net`. The ingestion editor, the ETL editor, and the Modbus slave are not published on the host. MQTT is published on `8883` with TLS. See [docs/adr-access.en.md](docs/adr-access.en.md) and [docs/adr-tls.en.md](docs/adr-tls.en.md).
 
 ### Services
 
 | Service | Image / build | Host port |
 | --- | --- | --- |
-| Mosquitto | `eclipse-mosquitto:2.0.22` | 1883 |
+| Mosquitto | `eclipse-mosquitto:2.0.22` | 8883 |
 | modbus-slave | `./modbus-slave` | not published |
 | Node-RED ingestion | `edge-node-red-ingestion:4.0.9` | not published |
 | Node-RED ETL | `edge-node-red-etl:4.0.9` | not published |
@@ -168,7 +168,7 @@ The running code stores one row per signal, so condition, margin used, quality, 
 - **Signals follow failure modes.** Reliability work starts from an FMEA per asset type, and ISO 17359 maps each failure mode to the parameters that detect it. The motor does not publish pressure.
 - **Measurements are one row per signal.** One row per asset, signal, and time gives each signal its own quality, lets a new signal arrive without adding a column, and joins directly with the narrow `asset_limits` table. That is what `sensor_readings` stores. See [docs/adr-measurements.en.md](docs/adr-measurements.en.md).
 - **Metadata stays in the asset registry.** Plant, area, type, and criticality live in `assets`. Units and limits stay on `asset_limits`. The motor profile is what writes those rows. A template of limits per asset type is still ahead.
-- **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. Ingestion may only publish there. The ETL may only subscribe there and publish rejections. The editors and the Modbus slave are not published on the host. Port `1883` stays cleartext. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) and [docs/adr-access.en.md](docs/adr-access.en.md).
+- **The boundary is the broker.** OT and IT meet at Mosquitto, on the namespace `plant/area/asset/telemetry`. Ingestion may only publish there. The ETL may only subscribe there and publish rejections. The editors and the Modbus slave are not published on the host. MQTT is on `8883` with TLS. ISA-95 is the reference for that hierarchy. Sparkplug B defines typed metrics with quality, plus birth and death messages for a disconnected device. It stays named and unimplemented. See [docs/adr-ot-it.en.md](docs/adr-ot-it.en.md) and [docs/adr-access.en.md](docs/adr-access.en.md).
 - **Rejections have a store.** Contract violations go to the MQTT topic `rejected` and to `rejected_messages`, one row per message with the reasons. An accepted reading that cannot be inserted waits in the ETL spool.
 
 The code cut that applies this direction is in [docs/adr-scope.en.md](docs/adr-scope.en.md): OPC UA, the pump, and the compressor have left, and the motor profile is one row per signal.

@@ -41,7 +41,7 @@ Sparkplug B is a different namespace, `spBv1.0/group/message_type/edge_node/devi
 
 These limits stay lab limits:
 
-- Port `1883` is published on the host, in the clear. TimescaleDB listens on `127.0.0.1:5435`.
+- TimescaleDB listens on `127.0.0.1:5435`. The broker publishes `8883` with TLS: [adr-tls.en.md](adr-tls.en.md).
 - `rejected` is a flat topic.
 
 The two accounts, the ACL, and the workshop ports that are no longer published are in [adr-access.en.md](adr-access.en.md). The topic in this text does not change.

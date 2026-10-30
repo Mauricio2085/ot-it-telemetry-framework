@@ -6,13 +6,13 @@ Status: accepted. 2026-10-29.
 
 ## Context
 
-The ingestion editor, the ETL editor, and the Modbus slave were published on the host, on `1881`, `1882`, and `1502`. The broker had one account. Whoever held it could publish and subscribe to any topic. Port `1883` is published in the clear.
+The ingestion editor, the ETL editor, and the Modbus slave were published on the host, on `1881`, `1882`, and `1502`. The broker had one account. Whoever held it could publish and subscribe to any topic. Port `1883` was published in the clear.
 
 Ingestion only publishes `plant/area/asset/telemetry`. The ETL only subscribes to `+/+/+/telemetry` and publishes rejections on the topic `rejected`.
 
 ## Decision
 
-The host no longer publishes `1881`, `1882`, or `1502`. Those programs stay on their Docker networks and are reached by name. Grafana stays on `3001`. TimescaleDB stays on `127.0.0.1:5435`. Mosquitto stays on `1883`, without TLS.
+The host no longer publishes `1881`, `1882`, or `1502`. Those programs stay on their Docker networks and are reached by name. Grafana stays on `3001`. TimescaleDB stays on `127.0.0.1:5435`. Broker encryption is in [adr-tls.en.md](adr-tls.en.md).
 
 There are two accounts. On start, the entrypoint writes the password file and the ACL on the data volume, and starts from a copy of `mosquitto.conf` that points at that ACL.
 
@@ -34,7 +34,7 @@ Inside each Node-RED the variables are still named `MQTT_USER` and `MQTT_PASSWOR
 
 ## Consequences
 
-- Encrypting `1883` (TLS, port `8883`) stays out of this cut.
+- The TLS listener is in [adr-tls.en.md](adr-tls.en.md). This cut did not open it.
 - The `prohibit` route and `restart: on-failure` stay as they are.
 - A rejection is seen in `rejected_messages`. Neither account can subscribe to `rejected`.
 - A compromised ingestion can still publish readings on the telemetry topics. It cannot listen to the plant or write rejections.

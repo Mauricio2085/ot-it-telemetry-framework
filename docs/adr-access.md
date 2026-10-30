@@ -6,13 +6,13 @@ Estado: aceptada. 2026-10-29.
 
 ## Contexto
 
-El editor de ingesta, el editor del ETL y el esclavo Modbus se publicaban en el host, en `1881`, `1882` y `1502`. El broker tenía una sola cuenta. Quien la tenía publicaba y se suscribía a cualquier tópico. El puerto `1883` se publica en claro.
+El editor de ingesta, el editor del ETL y el esclavo Modbus se publicaban en el host, en `1881`, `1882` y `1502`. El broker tenía una sola cuenta. Quien la tenía publicaba y se suscribía a cualquier tópico. El puerto `1883` se publicaba en claro.
 
 La ingesta solo publica `plant/area/asset/telemetry`. El ETL solo se suscribe a `+/+/+/telemetry` y publica los rechazos en el tópico `rejected`.
 
 ## Decisión
 
-El host deja de publicar `1881`, `1882` y `1502`. Esos programas siguen en sus redes Docker y se alcanzan por nombre. Grafana sigue en `3001`. TimescaleDB sigue en `127.0.0.1:5435`. Mosquitto sigue en `1883`, sin cifrar.
+El host deja de publicar `1881`, `1882` y `1502`. Esos programas siguen en sus redes Docker y se alcanzan por nombre. Grafana sigue en `3001`. TimescaleDB sigue en `127.0.0.1:5435`. El cifrado del broker está en [adr-tls.md](adr-tls.md).
 
 Hay dos cuentas. Al arrancar, el entrypoint escribe el archivo de contraseñas y el ACL en el volumen de datos, y arranca con una copia de `mosquitto.conf` que apunta a ese ACL.
 
@@ -34,7 +34,7 @@ Dentro de cada Node-RED las variables siguen llamándose `MQTT_USER` y `MQTT_PAS
 
 ## Consecuencias
 
-- Cifrar el `1883` (TLS, puerto `8883`) queda fuera de este corte.
+- El listener TLS está en [adr-tls.md](adr-tls.md). Este corte no lo abría.
 - La ruta `prohibit` y `restart: on-failure` se quedan como están.
 - Un rechazo se ve en `rejected_messages`. Ninguna de las dos cuentas puede suscribirse a `rejected`.
 - Una ingesta comprometida puede publicar lecturas en los tópicos de telemetría. No puede escuchar la planta ni escribir rechazos.
