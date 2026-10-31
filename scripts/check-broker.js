@@ -23,7 +23,7 @@ const mosquitto = service(compose, "\n  mosquitto:\n", "\n  modbus-slave:\n");
 const slave = service(compose, "\n  modbus-slave:\n", "\n  node-red-ingestion:\n");
 const ingestion = service(compose, "\n  node-red-ingestion:\n", "\n  node-red-etl:\n");
 const etl = service(compose, "\n  node-red-etl:\n", "\n  timescaledb:\n");
-const timescale = service(compose, "\n  timescaledb:\n", "\n  grafana:\n");
+const timescale = service(compose, "\n  timescaledb:\n", "\n  mailbox:\n");
 const grafana = service(compose, "\n  grafana:\n");
 
 assert.ok(mosquitto.includes('"8883:8883"'), "broker stays on 8883");

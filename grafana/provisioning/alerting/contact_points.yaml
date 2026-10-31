@@ -1,0 +1,16 @@
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: demo-mailbox
+    receivers:
+      - uid: demo_mailbox_email
+        type: email
+        disableResolveMessage: false
+        settings:
+          addresses: demo@edge.local
+          singleEmail: true
+          subject: "[{{ .Status }}] Asset Health"
+          message: |
+            {{ range .Alerts }}[{{ .Status }}] {{ .Annotations.summary }}
+            {{ end }}

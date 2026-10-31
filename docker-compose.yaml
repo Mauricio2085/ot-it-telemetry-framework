@@ -34,7 +34,7 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2.0.22
     container_name: edge-mosquitto
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - "8883:8883" # MQTT over TLS
     entrypoint: ["/bin/sh", "/usr/local/bin/mosquitto-auth-entrypoint.sh"]
@@ -66,7 +66,7 @@ services:
   modbus-slave:
     build: ./modbus-slave
     container_name: edge-modbus-slave
-    restart: on-failure
+    restart: unless-stopped
     environment:
       - TZ=America/Bogota
       - MODBUS_BIND_HOST=0.0.0.0
@@ -87,7 +87,7 @@ services:
     build: ./nodered/ingestion
     image: edge-node-red-ingestion:4.0.9
     container_name: edge-node-red-ingestion
-    restart: on-failure
+    restart: unless-stopped
     environment:
       - TZ=America/Bogota
       - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
@@ -127,7 +127,7 @@ services:
     build: ./nodered/etl
     image: edge-node-red-etl:4.0.9
     container_name: edge-node-red-etl
-    restart: on-failure
+    restart: unless-stopped
     environment:
       - TZ=America/Bogota
       - NODE_RED_CREDENTIAL_SECRET=${NODE_RED_CREDENTIAL_SECRET}
@@ -170,7 +170,7 @@ services:
   timescaledb:
     image: timescale/timescaledb:2.30.2-pg17
     container_name: edge-timescaledb
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5435:5432"
     environment:
@@ -200,12 +200,31 @@ services:
           memory: 1G
 
   # ===========================================================
+  # DEMO MAILBOX (SMTP stays on it-net; the web UI is the screen)
+  # ===========================================================
+  mailbox:
+    image: axllent/mailpit:v1.32.0
+    container_name: edge-mailbox
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+    environment:
+      - TZ=America/Bogota
+      - MP_MAX_MESSAGES=500
+    networks:
+      - it-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ===========================================================
   # VISUALIZATION (Grafana)
   # ===========================================================
   grafana:
     image: grafana/grafana-oss:12.0.4
     container_name: edge-grafana
-    restart: on-failure
+    restart: unless-stopped
     ports:
       - "3001:3000"
     environment:
@@ -214,6 +233,12 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
       - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_SMTP_ENABLED=true
+      - GF_SMTP_HOST=mailbox:1025
+      - GF_SMTP_FROM_ADDRESS=alerts@edge.local
+      - GF_SMTP_FROM_NAME=Asset Health
+      - GF_SMTP_SKIP_VERIFY=true
+      - GF_SMTP_STARTTLS_POLICY=NoStartTLS
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
@@ -224,6 +249,8 @@ services:
     depends_on:
       timescaledb:
         condition: service_healthy
+      mailbox:
+        condition: service_started
     networks:
       - it-net
     deploy:
