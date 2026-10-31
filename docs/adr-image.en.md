@@ -27,4 +27,4 @@ The network is required to build the image. Starting that image does not call np
 
 - A new node is a change to `package.json`, the lockfile, and a new image. It does not come in through the editor.
 - TLS, the broker accounts, and the restart policy stay out of this cut.
-- The time zone and `restart: on-failure` stay as they are.
+- The time zone stays. The restart policy is in [adr-alert.en.md](adr-alert.en.md).

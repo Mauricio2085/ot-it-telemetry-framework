@@ -35,6 +35,6 @@ Dentro de cada Node-RED las variables siguen llamándose `MQTT_USER` y `MQTT_PAS
 ## Consecuencias
 
 - El listener TLS está en [adr-tls.md](adr-tls.md). Este corte no lo abría.
-- La ruta `prohibit` y `restart: on-failure` se quedan como están.
+- La ruta `prohibit` se queda. La política de reinicio está en [adr-alert.md](adr-alert.md).
 - Un rechazo se ve en `rejected_messages`. Ninguna de las dos cuentas puede suscribirse a `rejected`.
 - Una ingesta comprometida puede publicar lecturas en los tópicos de telemetría. No puede escuchar la planta ni escribir rechazos.

@@ -35,6 +35,6 @@ Inside each Node-RED the variables are still named `MQTT_USER` and `MQTT_PASSWOR
 ## Consequences
 
 - The TLS listener is in [adr-tls.en.md](adr-tls.en.md). This cut did not open it.
-- The `prohibit` route and `restart: on-failure` stay as they are.
+- The `prohibit` route stays. The restart policy is in [adr-alert.en.md](adr-alert.en.md).
 - A rejection is seen in `rejected_messages`. Neither account can subscribe to `rejected`.
 - A compromised ingestion can still publish readings on the telemetry topics. It cannot listen to the plant or write rejections.

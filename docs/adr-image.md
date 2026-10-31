@@ -27,4 +27,4 @@ La red hace falta para construir la imagen. Un arranque de esa imagen no llama a
 
 - Un nodo nuevo es un cambio de `package.json`, del lockfile y una imagen nueva. No entra por el editor.
 - TLS, las cuentas del broker y la política de reinicio no entran en este corte.
-- La zona horaria y el `restart: on-failure` se quedan como están.
+- La zona horaria se queda. La política de reinicio está en [adr-alert.md](adr-alert.md).
