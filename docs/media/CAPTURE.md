@@ -11,7 +11,8 @@ Already in this folder: `architecture.svg`, `mailbox-alert.png` (firing alarm ma
 | `mailbox-inbox.png` | Done | Mailpit inbox list (optional for carousel) |
 | `dashboard-normal.png` | Done | Tile `NORMAL`, no bad readings |
 | `dashboard-bad-quality.png` | Done | Tile `NORMAL` with “bad readings discarded” |
-| `dashboard-alarm.png` | Done | Captured while vibration was past alarm / high warning |
+| `dashboard-alarm.png` | Done | ALARM KPI tile + vibration/temperature charts (same framing as warning) |
+| `dashboard-warning-trends.png` | Done | WARNING KPI tile + vibration/temperature charts in one frame |
 | Short MP4/GIF | **You** | 45–60 s: cycle restart → condition moves → mail → bad spike does not mail |
 
 Dashboard PNGs are linked from `README.md` / `README.es.md`.

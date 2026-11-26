@@ -10,6 +10,8 @@ Demo local de un motor mecánico: temperatura de rodamientos y vibración por Mo
 
 ![Asset Health con calidad bad descartada](docs/media/dashboard-bad-quality.png)
 
+![Asset Health en warning con tendencia de vibración](docs/media/dashboard-warning-trends.png)
+
 ![Asset Health en alarma](docs/media/dashboard-alarm.png)
 
 ![Correo de alerta en Mailpit](docs/media/mailbox-alert.png)

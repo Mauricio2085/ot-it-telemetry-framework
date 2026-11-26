@@ -10,6 +10,8 @@ Local demo for one mechanical motor: bearing temperature and vibration over Modb
 
 ![Asset Health with bad quality discarded](docs/media/dashboard-bad-quality.png)
 
+![Asset Health warning with vibration trend](docs/media/dashboard-warning-trends.png)
+
 ![Asset Health in alarm](docs/media/dashboard-alarm.png)
 
 ![Alert mail in Mailpit](docs/media/mailbox-alert.png)
