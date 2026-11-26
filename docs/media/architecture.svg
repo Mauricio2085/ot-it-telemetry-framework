@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="420" viewBox="0 0 960 420" role="img" aria-labelledby="title desc">
+  <title id="title">OT/IT telemetry pipeline</title>
+  <desc id="desc">Modbus slave and Node-RED ingestion on ot-net publish to Mosquitto; Node-RED ETL, TimescaleDB, Grafana, and Mailpit on it-net consume telemetry.</desc>
+  <defs>
+    <style>
+      .box { fill: #f7f7f5; stroke: #2c3338; stroke-width: 1.5; }
+      .broker { fill: #e8eef2; stroke: #2c3338; stroke-width: 1.5; }
+      .label { font-family: "IBM Plex Sans", "Segoe UI", sans-serif; fill: #1a1d21; }
+      .title { font-size: 15px; font-weight: 600; }
+      .sub { font-size: 12px; fill: #4a5560; }
+      .zone { font-size: 13px; font-weight: 600; letter-spacing: 0.04em; fill: #4a5560; }
+      .arrow { stroke: #2c3338; stroke-width: 1.75; fill: none; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2c3338"/>
+    </marker>
+  </defs>
+
+  <rect x="24" y="48" width="280" height="320" rx="8" fill="#f0f2f0" stroke="#9aa3a8" stroke-dasharray="5 4"/>
+  <text x="40" y="76" class="label zone">OT-NET</text>
+
+  <rect x="48" y="104" width="232" height="72" rx="6" class="box"/>
+  <text x="64" y="134" class="label title">modbus-slave</text>
+  <text x="64" y="154" class="label sub">critical-motor-01 · HR0–HR2</text>
+
+  <rect x="48" y="220" width="232" height="72" rx="6" class="box"/>
+  <text x="64" y="250" class="label title">Node-RED ingestion</text>
+  <text x="64" y="270" class="label sub">Modbus TCP → JSON → MQTT</text>
+
+  <path class="arrow" d="M164 176 V220"/>
+
+  <rect x="340" y="160" width="200" height="96" rx="6" class="broker"/>
+  <text x="360" y="196" class="label title">Mosquitto</text>
+  <text x="360" y="216" class="label sub">TLS · 8883</text>
+  <text x="360" y="236" class="label sub">plant/area/asset/telemetry</text>
+
+  <path class="arrow" d="M280 256 H340"/>
+  <path class="arrow" d="M540 208 H616"/>
+
+  <rect x="616" y="48" width="320" height="320" rx="8" fill="#f5f6f8" stroke="#9aa3a8" stroke-dasharray="5 4"/>
+  <text x="632" y="76" class="label zone">IT-NET</text>
+
+  <rect x="640" y="100" width="272" height="56" rx="6" class="box"/>
+  <text x="656" y="124" class="label title">Node-RED ETL</text>
+  <text x="656" y="142" class="label sub">validate · spool · insert</text>
+
+  <rect x="640" y="176" width="272" height="56" rx="6" class="box"/>
+  <text x="656" y="200" class="label title">TimescaleDB</text>
+  <text x="656" y="218" class="label sub">readings · condition · history</text>
+
+  <rect x="640" y="252" width="128" height="56" rx="6" class="box"/>
+  <text x="656" y="276" class="label title">Grafana</text>
+  <text x="656" y="294" class="label sub">:3001</text>
+
+  <rect x="784" y="252" width="128" height="56" rx="6" class="box"/>
+  <text x="800" y="276" class="label title">Mailpit</text>
+  <text x="800" y="294" class="label sub">:8025</text>
+
+  <path class="arrow" d="M776 156 V176"/>
+  <path class="arrow" d="M720 232 V252"/>
+  <path class="arrow" d="M848 232 V252"/>
+
+  <text x="24" y="400" class="label sub">OT and IT meet only at the broker. Editors and the Modbus slave are not published on the host.</text>
+</svg>
