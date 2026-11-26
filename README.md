@@ -1,5 +1,34 @@
 [Español](README.es.md)
 
+# Critical motor health across OT and IT
+
+Local demo for one mechanical motor: bearing temperature and vibration over Modbus TCP. OT and IT meet only at the MQTT broker (TLS). Each signal is one row with its own quality. TimescaleDB classifies `normal` / `warning` / `alarm` / `stale`. Grafana shows Asset Health; a local mailbox gets the notice. A scripted unbalance crosses ISO 10816-3 limits and alerts; a `bad` transmitter spike at minute 1 does not.
+
+![OT/IT pipeline](docs/media/architecture.svg)
+
+![Asset Health normal](docs/media/dashboard-normal.png)
+
+![Asset Health with bad quality discarded](docs/media/dashboard-bad-quality.png)
+
+![Asset Health in alarm](docs/media/dashboard-alarm.png)
+
+![Alert mail in Mailpit](docs/media/mailbox-alert.png)
+
+### Demo in 60 seconds
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+1. Open Grafana at `http://localhost:3001` → **IIoT** → **Asset Health**, and the mailbox at `http://localhost:8025`.
+2. Run `scripts/demo-prep.sh` (or `docker compose restart modbus-slave`) and watch the motor cycle.
+3. Expect: progressive vibration → warning/alarm + mail; minute-1 saturated vibration with quality `bad` → history kept, condition stays `normal`, no false alarm.
+
+Stack keywords: Modbus TCP, Node-RED, Mosquitto TLS/ACL, TimescaleDB, Grafana alerting, Docker `ot-net` / `it-net`, JSON Schema contracts.
+
+---
+
 This product monitors one critical mechanical motor: bearing temperature and vibration, read over Modbus TCP. Pressure, the pump, the compressor, and OPC UA are outside that scope. OPC UA stays a client's OT standard, not part of the product.
 
 The code in this repository is still the lab it was copied from, without OPC UA, the pump, and the compressor. The slave publishes bearing temperature and vibration, and each signal is one row. The decision, where it comes from, and the phases are in [docs/adr-scope.en.md](docs/adr-scope.en.md) ([español](docs/adr-scope.md)).

@@ -1,6 +1,33 @@
-# Salud de activos críticos
+# Salud de un motor crítico entre OT e IT
 
 [English](README.md)
+
+Demo local de un motor mecánico: temperatura de rodamientos y vibración por Modbus TCP. OT e IT solo se encuentran en el broker MQTT (TLS). Cada señal es una fila con su calidad. TimescaleDB clasifica `normal` / `warning` / `alarm` / `stale`. Grafana muestra Asset Health; un buzón local recibe el aviso. Un desbalance scriptado cruza los límites ISO 10816-3 y alerta; un pico `bad` del transmisor en el minuto 1 no.
+
+![Pipeline OT/IT](docs/media/architecture.svg)
+
+![Asset Health en normal](docs/media/dashboard-normal.png)
+
+![Asset Health con calidad bad descartada](docs/media/dashboard-bad-quality.png)
+
+![Asset Health en alarma](docs/media/dashboard-alarm.png)
+
+![Correo de alerta en Mailpit](docs/media/mailbox-alert.png)
+
+### Demo en 60 segundos
+
+```bash
+cp .env.example .env
+docker compose up -d --build
+```
+
+1. Abre Grafana en `http://localhost:3001` → **IIoT** → **Asset Health**, y el buzón en `http://localhost:8025`.
+2. Ejecuta `scripts/demo-prep.sh` (o `docker compose restart modbus-slave`) y mira el ciclo del motor.
+3. Espera: vibración progresiva → aviso/alarma + correo; saturación con calidad `bad` en el minuto 1 → queda en el histórico, la condición sigue `normal`, sin falsa alarma.
+
+Palabras clave: Modbus TCP, Node-RED, Mosquitto TLS/ACL, TimescaleDB, alertas Grafana, redes Docker `ot-net` / `it-net`, contratos JSON Schema.
+
+---
 
 El producto monitorea un motor mecánico crítico: temperatura de rodamientos y vibración, leídas por Modbus TCP. La presión, la bomba, el compresor y OPC UA quedan fuera. OPC UA sigue siendo un estándar OT de un cliente, no del producto.
 
